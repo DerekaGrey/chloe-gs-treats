@@ -1,0 +1,61 @@
+<section class="hero">
+  <div class="container hero-inner">
+    <p class="hero-eyebrow">Sourdough · Cookies · Scones · Cinnamon Rolls</p>
+    <h1 class="hero-title"><span class="script">Chloe G's</span></h1>
+    <p class="hero-tagline">Homemade Treats, baked fresh in Columbia, MO</p>
+    <p class="hero-lead">
+      Small-batch sourdough cookies, scones, cinnamon rolls and more. Order online
+      and pick up fresh from our stand.
+    </p>
+    <div class="hero-actions">
+      <a routerLink="/menu" class="btn btn-primary">Order Now</a>
+      <a routerLink="/schedule" class="btn btn-outline">See Schedule</a>
+    </div>
+  </div>
+</section>
+
+@if (nextEvent) {
+  <section class="section next-popup">
+    <div class="container">
+      <div class="card next-card">
+        <span class="tag">Next Popup</span>
+        <h2>{{ nextEvent.title }}</h2>
+        <p class="next-when">
+          {{ nextEvent.startsAt | date: 'EEEE, MMMM d' }} ·
+          {{ nextEvent.startsAt | date: 'h:mm a' }} – {{ nextEvent.endsAt | date: 'h:mm a' }}
+        </p>
+        <p class="next-where">{{ nextEvent.location }}</p>
+        @if (nextEvent.description) {
+          <p class="next-desc">{{ nextEvent.description }}</p>
+        }
+        <a routerLink="/schedule" class="next-link">View full schedule →</a>
+      </div>
+    </div>
+  </section>
+}
+
+<section class="section how-it-works">
+  <div class="container">
+    <h2>Two Ways to Get Your Treats</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1</span>
+        <h3>Visit the Popup Stand</h3>
+        <p>
+          Stop by our stand on a <a routerLink="/schedule">popup day</a>, no order
+          needed. Grab cookies by the 3-pack and single scones or rice crispies, and
+          pay with Venmo or cash on the spot.
+        </p>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <h3>Order Online for Pickup</h3>
+        <p>
+          Want a larger order? <a routerLink="/menu">Shop</a> the full menu, choose
+          your pack sizes, and pick a pickup date at least {{ cfg.defaultLeadTimeDays }}
+          days out. We bake it fresh and you pay Venmo or cash at pickup.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

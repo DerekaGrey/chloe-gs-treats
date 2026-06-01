@@ -1,0 +1,94 @@
+<section class="section">
+  <div class="container">
+    @if (!item) {
+      <div class="card not-found">
+        <p>Sorry, we couldn't find that item.</p>
+        <a routerLink="/menu" class="btn btn-outline">Back to Menu</a>
+      </div>
+    } @else {
+      <a routerLink="/menu" class="back-link">← Back to Menu</a>
+
+      <div class="detail">
+        <!-- Image -->
+        <div class="photo">
+          @if (item.photoUrls.length > 0) {
+            <img [src]="item.photoUrls[0]" [alt]="item.name" />
+          } @else {
+            <div class="photo-placeholder"><span class="script">Chloe G's</span></div>
+          }
+        </div>
+
+        <!-- Selection panel -->
+        <div class="info">
+          <h1>{{ item.name }}</h1>
+          <p class="desc">{{ item.description }}</p>
+
+          <!-- Pack size -->
+          <div class="chooser">
+            <label>Choose a pack</label>
+            <div class="options">
+              @for (pack of item.packPricing; track pack.label) {
+                <button
+                  type="button"
+                  class="option"
+                  [class.selected]="selectedPack()?.label === pack.label"
+                  (click)="selectPack(pack)">
+                  {{ pack.label }} for {{ pack.priceCents | cents }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Option groups (icing / drizzle / nuts) -->
+          @for (group of item.optionGroups; track group.name) {
+            <div class="chooser">
+              <label>{{ group.name }}</label>
+              <div class="options">
+                @for (opt of group.options; track opt.label) {
+                  <button
+                    type="button"
+                    class="option"
+                    [class.selected]="isOptionSelected(group.name, opt)"
+                    (click)="selectOption(group, opt)">
+                    {{ opt.label }}
+                    @if (opt.priceCentsDelta > 0) {
+                      (+{{ opt.priceCentsDelta | cents }})
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Quantity -->
+          <div class="chooser">
+            <label>How many packs?</label>
+            <div class="qty">
+              <button type="button" (click)="changeQty(-1)" aria-label="Decrease">−</button>
+              <span class="qty-value">{{ packCount() }}</span>
+              <button type="button" (click)="changeQty(1)" aria-label="Increase">+</button>
+            </div>
+          </div>
+
+          <div class="add-row">
+            <span class="total">{{ totalCents() | cents }}</span>
+            <button type="button" class="btn btn-primary" (click)="addToCart()">
+              Add to Cart
+            </button>
+          </div>
+
+          <!-- Allergens + ingredients -->
+          <div class="allergens">
+            @if (item.allergens.length) {
+              <p><strong>Contains:</strong> {{ item.allergens.join(', ') }}</p>
+            }
+            @if (item.ingredients) {
+              <p class="ingredients"><strong>Ingredients:</strong> {{ item.ingredients }}</p>
+            }
+            <p class="disclaimer">{{ disclaimer }}</p>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</section>

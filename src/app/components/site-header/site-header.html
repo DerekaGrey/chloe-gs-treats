@@ -1,0 +1,20 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <a routerLink="/" class="brand">
+      <span class="brand-script script">Chloe G's</span>
+      <span class="brand-sub">Homemade Treats</span>
+    </a>
+
+    <nav class="nav">
+      <a routerLink="/menu" routerLinkActive="active">Shop</a>
+      <a routerLink="/schedule" routerLinkActive="active">Popup Days</a>
+      <a routerLink="/about" routerLinkActive="active">About</a>
+      <a routerLink="/cart" routerLinkActive="active" class="cart-link">
+        Cart
+        @if (itemCount() > 0) {
+          <span class="cart-badge">{{ itemCount() }}</span>
+        }
+      </a>
+    </nav>
+  </div>
+</header>

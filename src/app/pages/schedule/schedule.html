@@ -1,0 +1,62 @@
+<section class="section">
+  <div class="container">
+    <h1>Popup Days</h1>
+    <p class="intro">
+      Come visit our stand in person! Here's where we'll be next and what we're
+      planning to bake. (Want a larger order or a specific pickup day instead? Head to
+      <a routerLink="/menu">Shop</a> to order ahead.)
+    </p>
+
+    @if (upcoming.length === 0) {
+      <div class="card empty">
+        <p>No popups are scheduled right now, check back soon!</p>
+      </div>
+    } @else {
+      <div class="events">
+        @for (event of upcoming; track event.id) {
+          <article class="card event">
+            <!-- Event header -->
+            <div class="event-head">
+              <div class="event-date">
+                <span class="month">{{ event.startsAt | date: 'MMM' }}</span>
+                <span class="day">{{ event.startsAt | date: 'd' }}</span>
+              </div>
+              <div class="event-body">
+                <h2>{{ event.title }}</h2>
+                <p class="when">
+                  {{ event.startsAt | date: 'EEEE' }},
+                  {{ event.startsAt | date: 'h:mm a' }} – {{ event.endsAt | date: 'h:mm a' }}
+                </p>
+                <p class="where">{{ event.location }}</p>
+                @if (event.description) {
+                  <p class="desc">{{ event.description }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Planned-menu poster (stand pricing) -->
+            @if (event.standMenu && event.standMenu.length > 0) {
+              <div class="day-menu">
+                <div class="dm-brand-band">
+                  <span class="dm-brand script">Chloe G's</span>
+                </div>
+                <p class="dm-title">Planned Menu</p>
+
+                <ul class="dm-list">
+                  @for (entry of event.standMenu; track entry.name) {
+                    <li class="dm-item">
+                      <span class="dm-name">{{ entry.name }}</span>
+                      <span class="dm-price">{{ entry.priceLabel }}</span>
+                    </li>
+                  }
+                </ul>
+
+                <p class="dm-foot">Homemade Treats · Columbia, MO</p>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
+  </div>
+</section>

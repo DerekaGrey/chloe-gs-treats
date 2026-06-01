@@ -1,0 +1,108 @@
+.intro { color: var(--color-ink-soft); margin-bottom: 2rem; max-width: 640px; }
+.empty { padding: 2rem; text-align: center; color: var(--color-ink-soft); }
+
+.events { display: grid; gap: 1.5rem; }
+
+.event { padding: 0; overflow: hidden; }
+
+/* ---- Event header ---- */
+.event-head {
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  align-items: center;
+}
+.event-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: var(--radius);
+  background: var(--color-blush);
+}
+.event-date .month {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-red);
+  font-weight: 700;
+}
+.event-date .day { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.event-body h2 { margin: 0 0 0.35rem; font-size: 1.15rem; }
+.event-body .when { font-weight: 600; margin: 0.15rem 0; }
+.event-body .where { color: var(--color-ink-soft); margin: 0.15rem 0; font-size: 0.9rem; }
+.event-body .desc { color: var(--color-ink-soft); font-style: italic; margin: 0.5rem 0 0; }
+
+/* ---- Planned-menu poster ---- */
+.day-menu {
+  margin: 0 1.25rem 1.25rem;
+  padding: 0 1.5rem 1.25rem;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top right, rgba(231, 164, 172, 0.18), transparent 60%),
+    var(--color-cream);
+  border: 1px solid var(--color-cream-dark);
+}
+
+/* "Chloe G's" sits in a fixed-height band, vertically centered, with the
+   separator drawn as the band's bottom border. */
+.dm-brand-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4rem;
+  border-bottom: 1px solid var(--color-blush-deep);
+  margin-bottom: 1rem;
+}
+.dm-brand {
+  font-size: 2rem;
+  color: var(--color-ink);
+  line-height: 1;
+}
+.dm-title {
+  text-align: center;
+  margin: 0 0 1.25rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-red);
+}
+
+.dm-list { list-style: none; margin: 0; padding: 0; }
+.dm-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px dashed var(--color-cream-dark);
+}
+.dm-item:last-child { border-bottom: none; }
+.dm-name {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+.dm-price {
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--color-red);
+  font-size: 0.9rem;
+}
+
+.dm-foot {
+  text-align: center;
+  margin: 1.25rem 0 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+@media (max-width: 600px) {
+  .dm-item { gap: 0.25rem; }
+}

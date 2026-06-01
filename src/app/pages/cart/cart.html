@@ -1,0 +1,49 @@
+<section class="section">
+  <div class="container">
+    <h1>Your Cart</h1>
+
+    @if (lines().length === 0) {
+      <div class="card empty">
+        <p>Your cart is empty.</p>
+        <a routerLink="/menu" class="btn btn-primary">Browse the Menu</a>
+      </div>
+    } @else {
+      <div class="cart-lines">
+        @for (line of lines(); track line.lineId) {
+          <div class="card line">
+            <div class="line-info">
+              <h3>{{ line.item.name }}</h3>
+              <p class="pack">Pack of {{ line.pack.label }} ({{ line.pack.priceCents | cents }})</p>
+              @for (opt of line.selectedOptions; track opt.groupName) {
+                <p class="opt">{{ opt.groupName }}: {{ opt.optionLabel }}</p>
+              }
+            </div>
+
+            <div class="line-qty">
+              <button type="button" (click)="changeQty(line, -1)" aria-label="Decrease">−</button>
+              <span>{{ line.packCount }}</span>
+              <button type="button" (click)="changeQty(line, 1)" aria-label="Increase">+</button>
+            </div>
+
+            <div class="line-total">{{ lineTotal(line) | cents }}</div>
+
+            <button type="button" class="remove" (click)="remove(line)" aria-label="Remove">✕</button>
+          </div>
+        }
+      </div>
+
+      <div class="cart-foot">
+        <button type="button" class="link-btn" (click)="clear()">Clear cart</button>
+        <div class="subtotal">
+          <span>Subtotal</span>
+          <strong>{{ subtotalCents() | cents }}</strong>
+        </div>
+      </div>
+
+      <div class="checkout-row">
+        <a routerLink="/menu" class="btn btn-outline">Keep Shopping</a>
+        <a routerLink="/checkout" class="btn btn-primary">Proceed to Checkout</a>
+      </div>
+    }
+  </div>
+</section>

@@ -1,0 +1,40 @@
+.site-footer {
+  background: var(--color-ink);
+  color: #e9e3da;
+  margin-top: 3rem;
+}
+.footer-inner {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+}
+.footer-brand .script {
+  font-size: 2rem;
+  color: #fff;
+  display: block;
+}
+.footer-sub {
+  font-size: 0.6rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-rose);
+}
+.footer-info {
+  margin: 1.25rem 0;
+  font-size: 0.85rem;
+}
+.footer-info p { margin: 0.2rem 0; }
+.disclaimer {
+  max-width: 560px;
+  margin: 1.25rem auto;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: #b8b0a6;
+  line-height: 1.5;
+}
+.copyright {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d857b;
+  margin: 0;
+}

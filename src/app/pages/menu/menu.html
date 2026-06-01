@@ -1,0 +1,41 @@
+<section class="section">
+  <div class="container">
+    <h1>Shop the Menu</h1>
+    <p class="intro">
+      Order ahead online and pick a pickup day that works for you. This is separate
+      from visiting our popup stand. Choose your treats below, then set your pickup
+      date at checkout (at least 3 days out so everything is baked fresh).
+    </p>
+
+    @for (section of sections; track section.category) {
+      <div class="menu-section">
+        <h2>{{ section.label }}</h2>
+        <div class="grid">
+          @for (item of section.items; track item.id) {
+            <a class="card item-card" [routerLink]="['/menu', item.id]">
+              <div class="thumb">
+                @if (item.photoUrls.length > 0) {
+                  <img [src]="item.photoUrls[0]" [alt]="item.name" />
+                } @else {
+                  <div class="thumb-placeholder">
+                    <span class="script">Chloe G's</span>
+                  </div>
+                }
+              </div>
+              <div class="item-body">
+                <h3>{{ item.name }}</h3>
+                <p class="desc">{{ item.description }}</p>
+                <div class="item-foot">
+                  <span class="from">from {{ startingPriceCents(item) | cents }}</span>
+                  @if (item.optionGroups?.length) {
+                    <span class="tag">Options</span>
+                  }
+                </div>
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</section>

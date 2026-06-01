@@ -1,0 +1,54 @@
+.confirm { max-width: 600px; }
+.not-found { padding: 2rem; text-align: center; }
+.not-found p { margin-bottom: 1rem; }
+
+.confirm-card { padding: 2rem; text-align: center; }
+.check {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--color-leaf);
+  color: #fff;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+.confirm-card h1 { font-size: 1.5rem; }
+.lead { color: var(--color-ink-soft); margin-bottom: 1.25rem; }
+.order-number { font-size: 1.05rem; margin-bottom: 1.5rem; }
+
+.rows { text-align: left; margin: 1.5rem 0; }
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+.opt-row { font-size: 0.78rem; color: var(--color-ink-soft); padding-left: 0.5rem; }
+.row.total {
+  border-top: 1px solid var(--color-cream-dark);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  font-size: 1.1rem;
+}
+.row.total strong { color: var(--color-red); }
+
+.pickup { text-align: left; margin: 1.25rem 0; }
+.pickup p { margin: 0.2rem 0; }
+
+.pay-note {
+  background: var(--color-blush);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  margin: 1.25rem 0;
+}
+.email-note { font-size: 0.85rem; color: var(--color-ink-soft); }
+.disclaimer {
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  margin: 1.5rem 0;
+}

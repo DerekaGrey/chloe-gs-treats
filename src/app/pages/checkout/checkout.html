@@ -1,0 +1,76 @@
+<section class="section">
+  <div class="container checkout">
+    <h1>Checkout</h1>
+
+    <div class="checkout-grid">
+      <!-- Form -->
+      <form [formGroup]="form" (ngSubmit)="submit()" class="card form">
+        <h2>Your Details</h2>
+
+        <div class="field">
+          <label for="name">Name *</label>
+          <input id="name" type="text" formControlName="name" autocomplete="name" />
+          @if (form.controls.name.touched && form.controls.name.invalid) {
+            <p class="field-error">Please enter your name.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="email">Email *</label>
+          <input id="email" type="email" formControlName="email" autocomplete="email" />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p class="field-error">Please enter a valid email.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone (optional)</label>
+          <input id="phone" type="tel" formControlName="phone" autocomplete="tel" />
+        </div>
+
+        <div class="field">
+          <label for="pickupDate">Pickup date *</label>
+          <input id="pickupDate" type="date" formControlName="pickupDate" [min]="minDate" />
+          <p class="hint">Please order at least {{ cfg.defaultLeadTimeDays }} days ahead so everything is fresh-baked.</p>
+          @if (form.controls.pickupDate.touched && form.controls.pickupDate.hasError('required')) {
+            <p class="field-error">Please choose a pickup date.</p>
+          }
+          @if (form.controls.pickupDate.hasError('invalidPickupDate')) {
+            <p class="field-error">That date is too soon or unavailable, please pick another.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="notes">Special requests (optional)</label>
+          <textarea id="notes" rows="3" formControlName="specialRequests"></textarea>
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" formControlName="wantsEmailConfirmation" />
+          Email me an order confirmation
+        </label>
+
+        <div class="pay-note">
+          <strong>Payment:</strong> Pay with Venmo or cash when you pick up your order.
+        </div>
+
+        <button type="submit" class="btn btn-primary full">Place Order</button>
+      </form>
+
+      <!-- Summary -->
+      <aside class="card summary">
+        <h2>Order Summary</h2>
+        @for (line of lines(); track line.lineId) {
+          <div class="sum-line">
+            <span>{{ line.packCount }} × {{ line.item.name }} ({{ line.pack.label }})</span>
+          </div>
+        }
+        <div class="sum-total">
+          <span>Subtotal</span>
+          <strong>{{ subtotalCents() | cents }}</strong>
+        </div>
+        <a routerLink="/cart" class="edit-link">Edit cart</a>
+      </aside>
+    </div>
+  </div>
+</section>

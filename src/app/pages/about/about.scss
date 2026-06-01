@@ -1,0 +1,11 @@
+.about { max-width: 680px; }
+.about .script { text-transform: none; letter-spacing: normal; font-size: 2.6rem; }
+.about h2 { margin-top: 2rem; }
+.about p { color: var(--color-ink-soft); }
+.disclaimer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-cream-dark);
+  font-style: italic;
+  font-size: 0.85rem;
+}
