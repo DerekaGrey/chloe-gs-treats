@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public collections: anyone can read
+    match /menuItems/{id}    { allow read: if true; }
+    match /popupEvents/{id}  { allow read: if true; }
+    match /config/{id}       { allow read: if true; }
+
+    // Orders: anyone can create (checkout flow); reads are open for now so
+    // the confirmation page can fetch by orderNumber. Tighten this in the
+    // admin phase (restrict reads to the order owner or an admin).
+    match /orders/{id} {
+      allow create: if true;
+      allow read:   if true;
+    }
+
+    // Everything else: deny by default (no admin writes yet until admin auth
+    // is implemented in phase 4+). Add "allow write: if request.auth.token.admin == true"
+    // once the admin custom claim is set up.
+  }
+}

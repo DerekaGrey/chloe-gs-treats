@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { EventService } from '../../services/event.service';
@@ -14,6 +14,6 @@ export class Home {
   private events = inject(EventService);
   private config = inject(ConfigService);
 
-  readonly nextEvent = this.events.getNext();
-  readonly cfg = this.config.config;
+  readonly nextEvent = computed(() => this.events.getNext());
+  readonly cfg = computed(() => this.config.config);
 }

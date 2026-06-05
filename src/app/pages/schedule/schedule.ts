@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EventService } from '../../services/event.service';
@@ -11,5 +11,5 @@ import { EventService } from '../../services/event.service';
 })
 export class Schedule {
   private events = inject(EventService);
-  readonly upcoming = this.events.getUpcoming();
+  readonly upcoming = computed(() => this.events.getUpcoming());
 }

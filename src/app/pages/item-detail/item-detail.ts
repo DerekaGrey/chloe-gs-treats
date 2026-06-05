@@ -1,10 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MenuService } from '../../services/menu.service';
 import { CartService } from '../../services/cart.service';
 import { ConfigService } from '../../services/config.service';
 import { CentsPipe } from '../../shared/cents.pipe';
-import { ItemOption, OptionGroup, PackTier, SelectedOption } from '../../models';
+import { ItemOption, MenuItem, OptionGroup, PackTier, SelectedOption } from '../../models';
 
 @Component({
   selector: 'app-item-detail',
@@ -19,18 +19,15 @@ export class ItemDetail {
   private cart = inject(CartService);
   private config = inject(ConfigService);
 
-  readonly disclaimer = this.config.config.cottageFoodDisclaimer;
+  readonly disclaimer = computed(() => this.config.config.cottageFoodDisclaimer);
+  readonly item = computed(() =>
+    this.menu.getById(this.route.snapshot.paramMap.get('id') ?? ''),
+  );
 
-  // The item being viewed (looked up from the :id route param).
-  readonly item = this.menu.getById(this.route.snapshot.paramMap.get('id') ?? '');
-
-  // --- selection state (signals) ---
-  readonly selectedPack = signal<PackTier | undefined>(this.item?.packPricing[0]);
-  // Map of group name -> chosen option. Defaults to each group's first option.
-  readonly selectedOptions = signal<Record<string, ItemOption>>(this.defaultOptions());
+  readonly selectedPack = signal<PackTier | undefined>(undefined);
+  readonly selectedOptions = signal<Record<string, ItemOption>>({});
   readonly packCount = signal(1);
 
-  // Unit price = pack price + selected option deltas.
   readonly unitPriceCents = computed(() => {
     const pack = this.selectedPack();
     if (!pack) return 0;
@@ -43,9 +40,20 @@ export class ItemDetail {
 
   readonly totalCents = computed(() => this.unitPriceCents() * this.packCount());
 
-  private defaultOptions(): Record<string, ItemOption> {
+  constructor() {
+    // Once the item loads from Firestore, set pack/option defaults (runs once).
+    effect(() => {
+      const item = this.item();
+      if (item && untracked(() => !this.selectedPack())) {
+        this.selectedPack.set(item.packPricing[0]);
+        this.selectedOptions.set(this.defaultOptions(item));
+      }
+    });
+  }
+
+  private defaultOptions(item: MenuItem): Record<string, ItemOption> {
     const result: Record<string, ItemOption> = {};
-    for (const group of this.item?.optionGroups ?? []) {
+    for (const group of item.optionGroups ?? []) {
       result[group.name] = group.options[0];
     }
     return result;
@@ -56,7 +64,7 @@ export class ItemDetail {
   }
 
   selectOption(group: OptionGroup, option: ItemOption): void {
-    this.selectedOptions.update((current) => ({ ...current, [group.name]: option }));
+    this.selectedOptions.update(current => ({ ...current, [group.name]: option }));
   }
 
   isOptionSelected(groupName: string, option: ItemOption): boolean {
@@ -64,11 +72,12 @@ export class ItemDetail {
   }
 
   changeQty(delta: number): void {
-    this.packCount.update((q) => Math.max(1, q + delta));
+    this.packCount.update(q => Math.max(1, q + delta));
   }
 
   addToCart(): void {
-    if (!this.item || !this.selectedPack()) return;
+    const item = this.item();
+    if (!item || !this.selectedPack()) return;
     const options: SelectedOption[] = Object.entries(this.selectedOptions()).map(
       ([groupName, opt]) => ({
         groupName,
@@ -76,7 +85,7 @@ export class ItemDetail {
         priceCentsDelta: opt.priceCentsDelta,
       }),
     );
-    this.cart.add(this.item, this.selectedPack()!, options, this.packCount());
+    this.cart.add(item, this.selectedPack()!, options, this.packCount());
     this.router.navigate(['/cart']);
   }
 }

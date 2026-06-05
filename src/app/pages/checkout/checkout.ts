@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   AbstractControl,
@@ -27,10 +27,9 @@ export class Checkout implements OnInit {
 
   readonly lines = this.cart.lines;
   readonly subtotalCents = this.cart.subtotalCents;
-  readonly cfg = this.config.config;
-
-  /** Earliest selectable date as a yyyy-MM-dd string for the date input's `min`. */
-  readonly minDate = this.toInputDate(this.config.earliestPickupDate());
+  readonly cfg = computed(() => this.config.config);
+  readonly minDate = computed(() => this.toInputDate(this.config.earliestPickupDate()));
+  readonly submitting = signal(false);
 
   readonly form = this.fb.group({
     name: ['', [Validators.required]],
@@ -42,13 +41,11 @@ export class Checkout implements OnInit {
   });
 
   ngOnInit(): void {
-    // Can't check out an empty cart, so send them back to the menu.
     if (this.lines().length === 0) {
       this.router.navigate(['/cart']);
     }
   }
 
-  /** Validator: the chosen date must pass the lead-time + blackout rules. */
   private pickupDateValidator() {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null;
@@ -57,19 +54,24 @@ export class Checkout implements OnInit {
     };
   }
 
-  submit(): void {
-    if (this.form.invalid) {
+  async submit(): Promise<void> {
+    if (this.form.invalid || this.submitting()) {
       this.form.markAllAsTouched();
       return;
     }
-    const v = this.form.getRawValue();
-    const order = this.orders.createOrder({
-      customer: { name: v.name!, email: v.email!, phone: v.phone || undefined },
-      pickupDate: new Date(v.pickupDate! + 'T00:00:00'),
-      specialRequests: v.specialRequests || undefined,
-      wantsEmailConfirmation: !!v.wantsEmailConfirmation,
-    });
-    this.router.navigate(['/order', order.orderNumber]);
+    this.submitting.set(true);
+    try {
+      const v = this.form.getRawValue();
+      const order = await this.orders.createOrder({
+        customer: { name: v.name!, email: v.email!, phone: v.phone || undefined },
+        pickupDate: new Date(v.pickupDate! + 'T00:00:00'),
+        specialRequests: v.specialRequests || undefined,
+        wantsEmailConfirmation: !!v.wantsEmailConfirmation,
+      });
+      this.router.navigate(['/order', order.orderNumber]);
+    } finally {
+      this.submitting.set(false);
+    }
   }
 
   private toInputDate(d: Date): string {

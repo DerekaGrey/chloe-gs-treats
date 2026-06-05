@@ -1,20 +1,47 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
+import {
+  getFirestore,
+  doc,
+  onSnapshot,
+  DocumentSnapshot,
+  DocumentData,
+  Timestamp,
+} from 'firebase/firestore';
 import { AppConfig } from '../models';
 import { SEED_CONFIG } from '../data/seed-config';
 
-/** Site settings + pickup-date rules. Local for now; Firestore later. */
+function docToConfig(snap: DocumentSnapshot<DocumentData>): AppConfig {
+  const d = snap.data()!;
+  return {
+    brandName: d['brandName'] ?? SEED_CONFIG.brandName,
+    defaultLeadTimeDays: d['defaultLeadTimeDays'] ?? 3,
+    blackoutDates: ((d['blackoutDates'] ?? []) as Timestamp[]).map(t => t.toDate()),
+    pickupLocation: d['pickupLocation'] ?? SEED_CONFIG.pickupLocation,
+    contactEmail: d['contactEmail'] ?? SEED_CONFIG.contactEmail,
+    cottageFoodDisclaimer: d['cottageFoodDisclaimer'] ?? SEED_CONFIG.cottageFoodDisclaimer,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ConfigService {
+  // Seed config is the initial value so the UI is never blank while Firestore loads.
+  private readonly _config = signal<AppConfig>(SEED_CONFIG);
+
+  constructor() {
+    const db = getFirestore();
+    onSnapshot(doc(db, 'config', 'global'), snap => {
+      if (snap.exists()) this._config.set(docToConfig(snap));
+    });
+  }
+
   get config(): AppConfig {
-    return SEED_CONFIG;
+    return this._config();
   }
 
-  /** Is the given date one the admin has blocked off? (date-only comparison) */
   isBlackout(date: Date): boolean {
-    return this.config.blackoutDates.some((d) => this.sameDay(d, date));
+    return this.config.blackoutDates.some(d => this.sameDay(d, date));
   }
 
-  /** Earliest valid pickup date = today + lead time, skipping blocked days. */
   earliestPickupDate(from: Date = new Date()): Date {
     const d = this.startOfDay(from);
     d.setDate(d.getDate() + this.config.defaultLeadTimeDays);
@@ -22,7 +49,6 @@ export class ConfigService {
     return d;
   }
 
-  /** Validates a chosen pickup date against lead time + blocked days. */
   isValidPickupDate(date: Date): boolean {
     const chosen = this.startOfDay(date);
     if (chosen < this.earliestPickupDate()) return false;

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { ConfigService } from '../../services/config.service';
 
 @Component({
@@ -8,5 +8,5 @@ import { ConfigService } from '../../services/config.service';
 })
 export class About {
   private config = inject(ConfigService);
-  readonly cfg = this.config.config;
+  readonly cfg = computed(() => this.config.config);
 }

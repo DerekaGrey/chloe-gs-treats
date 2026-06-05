@@ -14,19 +14,19 @@
   </div>
 </section>
 
-@if (nextEvent) {
+@if (nextEvent()) {
   <section class="section next-popup">
     <div class="container">
       <div class="card next-card">
         <span class="tag">Next Popup</span>
-        <h2>{{ nextEvent.title }}</h2>
+        <h2>{{ nextEvent()!.title }}</h2>
         <p class="next-when">
-          {{ nextEvent.startsAt | date: 'EEEE, MMMM d' }} ·
-          {{ nextEvent.startsAt | date: 'h:mm a' }} – {{ nextEvent.endsAt | date: 'h:mm a' }}
+          {{ nextEvent()!.startsAt | date: 'EEEE, MMMM d' }} ·
+          {{ nextEvent()!.startsAt | date: 'h:mm a' }} – {{ nextEvent()!.endsAt | date: 'h:mm a' }}
         </p>
-        <p class="next-where">{{ nextEvent.location }}</p>
-        @if (nextEvent.description) {
-          <p class="next-desc">{{ nextEvent.description }}</p>
+        <p class="next-where">{{ nextEvent()!.location }}</p>
+        @if (nextEvent()!.description) {
+          <p class="next-desc">{{ nextEvent()!.description }}</p>
         }
         <a routerLink="/schedule" class="next-link">View full schedule →</a>
       </div>
@@ -52,7 +52,7 @@
         <h3>Order Online for Pickup</h3>
         <p>
           Want a larger order? <a routerLink="/menu">Shop</a> the full menu, choose
-          your pack sizes, and pick a pickup date at least {{ cfg.defaultLeadTimeDays }}
+          your pack sizes, and pick a pickup date at least {{ cfg().defaultLeadTimeDays }}
           days out. We bake it fresh and you pay Venmo or cash at pickup.
         </p>
       </div>

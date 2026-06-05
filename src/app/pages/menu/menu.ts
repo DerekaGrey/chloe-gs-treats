@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MenuService } from '../../services/menu.service';
 import { MenuCategory, MenuItem } from '../../models';
@@ -27,14 +27,15 @@ const CATEGORY_LABELS: Record<MenuCategory, string> = {
 export class Menu {
   private menu = inject(MenuService);
 
-  readonly sections: CategorySection[] = this.menu.getCategories().map((c) => ({
-    category: c,
-    label: CATEGORY_LABELS[c],
-    items: this.menu.getByCategory(c),
-  }));
+  readonly sections = computed<CategorySection[]>(() =>
+    this.menu.getCategories().map(c => ({
+      category: c,
+      label: CATEGORY_LABELS[c],
+      items: this.menu.getByCategory(c),
+    })),
+  );
 
-  /** Lowest pack price for an item, for the "from $X" label. */
   startingPriceCents(item: MenuItem): number {
-    return Math.min(...item.packPricing.map((p) => p.priceCents));
+    return Math.min(...item.packPricing.map(p => p.priceCents));
   }
 }

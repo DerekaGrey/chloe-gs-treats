@@ -1,6 +1,6 @@
 <section class="section">
   <div class="container">
-    @if (!item) {
+    @if (!item()) {
       <div class="card not-found">
         <p>Sorry, we couldn't find that item.</p>
         <a routerLink="/menu" class="btn btn-outline">Back to Menu</a>
@@ -11,8 +11,8 @@
       <div class="detail">
         <!-- Image -->
         <div class="photo">
-          @if (item.photoUrls.length > 0) {
-            <img [src]="item.photoUrls[0]" [alt]="item.name" />
+          @if (item()!.photoUrls.length > 0) {
+            <img [src]="item()!.photoUrls[0]" [alt]="item()!.name" />
           } @else {
             <div class="photo-placeholder"><span class="script">Chloe G's</span></div>
           }
@@ -20,14 +20,14 @@
 
         <!-- Selection panel -->
         <div class="info">
-          <h1>{{ item.name }}</h1>
-          <p class="desc">{{ item.description }}</p>
+          <h1>{{ item()!.name }}</h1>
+          <p class="desc">{{ item()!.description }}</p>
 
           <!-- Pack size -->
           <div class="chooser">
             <label>Choose a pack</label>
             <div class="options">
-              @for (pack of item.packPricing; track pack.label) {
+              @for (pack of item()!.packPricing; track pack.label) {
                 <button
                   type="button"
                   class="option"
@@ -40,7 +40,7 @@
           </div>
 
           <!-- Option groups (icing / drizzle / nuts) -->
-          @for (group of item.optionGroups; track group.name) {
+          @for (group of item()!.optionGroups; track group.name) {
             <div class="chooser">
               <label>{{ group.name }}</label>
               <div class="options">
@@ -79,13 +79,13 @@
 
           <!-- Allergens + ingredients -->
           <div class="allergens">
-            @if (item.allergens.length) {
-              <p><strong>Contains:</strong> {{ item.allergens.join(', ') }}</p>
+            @if (item()!.allergens.length) {
+              <p><strong>Contains:</strong> {{ item()!.allergens.join(', ') }}</p>
             }
-            @if (item.ingredients) {
-              <p class="ingredients"><strong>Ingredients:</strong> {{ item.ingredients }}</p>
+            @if (item()!.ingredients) {
+              <p class="ingredients"><strong>Ingredients:</strong> {{ item()!.ingredients }}</p>
             }
-            <p class="disclaimer">{{ disclaimer }}</p>
+            <p class="disclaimer">{{ disclaimer() }}</p>
           </div>
         </div>
       </div>

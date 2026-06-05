@@ -30,8 +30,8 @@
 
         <div class="field">
           <label for="pickupDate">Pickup date *</label>
-          <input id="pickupDate" type="date" formControlName="pickupDate" [min]="minDate" />
-          <p class="hint">Please order at least {{ cfg.defaultLeadTimeDays }} days ahead so everything is fresh-baked.</p>
+          <input id="pickupDate" type="date" formControlName="pickupDate" [min]="minDate()" />
+          <p class="hint">Please order at least {{ cfg().defaultLeadTimeDays }} days ahead so everything is fresh-baked.</p>
           @if (form.controls.pickupDate.touched && form.controls.pickupDate.hasError('required')) {
             <p class="field-error">Please choose a pickup date.</p>
           }
@@ -54,7 +54,9 @@
           <strong>Payment:</strong> Pay with Venmo or cash when you pick up your order.
         </div>
 
-        <button type="submit" class="btn btn-primary full">Place Order</button>
+        <button type="submit" class="btn btn-primary full" [disabled]="submitting()">
+          {{ submitting() ? 'Placing order...' : 'Place Order' }}
+        </button>
       </form>
 
       <!-- Summary -->

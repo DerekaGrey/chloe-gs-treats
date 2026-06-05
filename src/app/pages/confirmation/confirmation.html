@@ -1,20 +1,15 @@
 <section class="section">
   <div class="container confirm">
-    @if (!order) {
-      <div class="card not-found">
-        <p>We couldn't find that order.</p>
-        <a routerLink="/menu" class="btn btn-primary">Back to Menu</a>
-      </div>
-    } @else {
+    @if (order(); as o) {
       <div class="card confirm-card">
         <div class="check">✓</div>
-        <h1>Thank you{{ order.customer.name ? ', ' + order.customer.name : '' }}!</h1>
+        <h1>Thank you{{ o.customer.name ? ', ' + o.customer.name : '' }}!</h1>
         <p class="lead">Your order is in. Here are the details:</p>
 
-        <p class="order-number">Order <strong>{{ order.orderNumber }}</strong></p>
+        <p class="order-number">Order <strong>{{ o.orderNumber }}</strong></p>
 
         <div class="rows">
-          @for (line of order.items; track line.menuItemId + line.packLabelSnapshot) {
+          @for (line of o.items; track line.menuItemId + line.packLabelSnapshot) {
             <div class="row">
               <span>{{ line.packCount }} × {{ line.nameSnapshot }} (pack of {{ line.packLabelSnapshot }})</span>
               <span>{{ line.lineTotalCents | cents }}</span>
@@ -25,27 +20,32 @@
           }
           <div class="row total">
             <span>Total</span>
-            <strong>{{ order.totalCents | cents }}</strong>
+            <strong>{{ o.totalCents | cents }}</strong>
           </div>
         </div>
 
         <div class="pickup">
-          <p><strong>Pickup:</strong> {{ order.pickupDate | date: 'EEEE, MMMM d, y' }}</p>
-          <p>{{ cfg.pickupLocation }}</p>
+          <p><strong>Pickup:</strong> {{ o.pickupDate | date: 'EEEE, MMMM d, y' }}</p>
+          <p>{{ cfg().pickupLocation }}</p>
         </div>
 
         <div class="pay-note">
-          <strong>Payment:</strong> Please pay {{ order.totalCents | cents }} via Venmo or
+          <strong>Payment:</strong> Please pay {{ o.totalCents | cents }} via Venmo or
           cash when you pick up.
         </div>
 
-        @if (order.wantsEmailConfirmation) {
-          <p class="email-note">A confirmation email will be sent to {{ order.customer.email }}.</p>
+        @if (o.wantsEmailConfirmation) {
+          <p class="email-note">A confirmation email will be sent to {{ o.customer.email }}.</p>
         }
 
-        <p class="disclaimer">{{ cfg.cottageFoodDisclaimer }}</p>
+        <p class="disclaimer">{{ cfg().cottageFoodDisclaimer }}</p>
 
         <a routerLink="/menu" class="btn btn-outline">Back to Menu</a>
+      </div>
+    } @else {
+      <div class="card not-found">
+        <p>We couldn't find that order.</p>
+        <a routerLink="/menu" class="btn btn-primary">Back to Menu</a>
       </div>
     }
   </div>

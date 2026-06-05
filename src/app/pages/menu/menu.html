@@ -7,7 +7,7 @@
       date at checkout (at least 3 days out so everything is baked fresh).
     </p>
 
-    @for (section of sections; track section.category) {
+    @for (section of sections(); track section.category) {
       <div class="menu-section">
         <h2>{{ section.label }}</h2>
         <div class="grid">

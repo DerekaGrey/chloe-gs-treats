@@ -1,27 +1,43 @@
 import { Injectable } from '@angular/core';
 import {
-  CartLine,
-  CustomerInfo,
-  Order,
-  OrderLineItem,
-} from '../models';
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  QueryDocumentSnapshot,
+  DocumentData,
+  Timestamp,
+} from 'firebase/firestore';
+import { CartLine, CustomerInfo, Order, OrderLineItem } from '../models';
 import { CartService } from './cart.service';
 
-const ORDERS_KEY = 'chloegs-orders';
-const COUNTER_KEY = 'chloegs-order-counter';
+function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
+  const data = d.data();
+  return {
+    id: d.id,
+    orderNumber: data['orderNumber'],
+    customer: data['customer'],
+    items: data['items'] ?? [],
+    subtotalCents: data['subtotalCents'],
+    totalCents: data['totalCents'],
+    pickupDate: (data['pickupDate'] as Timestamp).toDate(),
+    specialRequests: data['specialRequests'],
+    status: data['status'],
+    paymentMethod: data['paymentMethod'],
+    paymentStatus: data['paymentStatus'],
+    wantsEmailConfirmation: data['wantsEmailConfirmation'] ?? false,
+    createdAt: (data['createdAt'] as Timestamp).toDate(),
+  };
+}
 
-/**
- * Creates orders. For now it builds the order, assigns a number, and stores it in
- * localStorage so the confirmation page can read it back. Later this becomes a
- * Firestore write (+ the email Cloud Function trigger).
- */
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   constructor(private cart: CartService) {}
 
-  /** Build line-item snapshots from the current cart. */
   private toLineItems(lines: CartLine[]): OrderLineItem[] {
-    return lines.map((l) => ({
+    return lines.map(l => ({
       menuItemId: l.item.id,
       nameSnapshot: l.item.name,
       packLabelSnapshot: l.pack.label,
@@ -33,22 +49,42 @@ export class OrderService {
     }));
   }
 
-  createOrder(input: {
+  async createOrder(input: {
     customer: CustomerInfo;
     pickupDate: Date;
     specialRequests?: string;
     wantsEmailConfirmation: boolean;
-  }): Order {
+  }): Promise<Order> {
+    const db = getFirestore();
     const lines = this.cart.lines();
     const items = this.toLineItems(lines);
     const subtotalCents = items.reduce((s, i) => s + i.lineTotalCents, 0);
+    const orderNumber = this.nextOrderNumber();
 
-    const order: Order = {
-      orderNumber: this.nextOrderNumber(),
+    await addDoc(collection(db, 'orders'), {
+      orderNumber,
+      customer: input.customer,
+      isGuest: true,
+      items,
+      subtotalCents,
+      totalCents: subtotalCents,
+      pickupDate: input.pickupDate,
+      specialRequests: input.specialRequests ?? null,
+      status: 'pending',
+      paymentMethod: 'pay_at_pickup',
+      paymentStatus: 'unpaid',
+      wantsEmailConfirmation: input.wantsEmailConfirmation,
+      createdAt: new Date(),
+    });
+
+    this.cart.clear();
+
+    return {
+      orderNumber,
       customer: input.customer,
       items,
       subtotalCents,
-      totalCents: subtotalCents, // no tax/fees in v1
+      totalCents: subtotalCents,
       pickupDate: input.pickupDate,
       specialRequests: input.specialRequests,
       status: 'pending',
@@ -57,52 +93,16 @@ export class OrderService {
       wantsEmailConfirmation: input.wantsEmailConfirmation,
       createdAt: new Date(),
     };
-
-    this.save(order);
-    this.cart.clear();
-    return order;
   }
 
-  /** Look up a previously placed order by its number (for the confirmation page). */
-  getByNumber(orderNumber: string): Order | undefined {
-    const all = this.loadAll();
-    const found = all.find((o) => o.orderNumber === orderNumber);
-    if (!found) return undefined;
-    // Dates come back as strings from JSON, so revive them.
-    found.pickupDate = new Date(found.pickupDate);
-    found.createdAt = new Date(found.createdAt);
-    return found;
+  async getByNumber(orderNumber: string): Promise<Order | undefined> {
+    const db = getFirestore();
+    const q = query(collection(db, 'orders'), where('orderNumber', '==', orderNumber));
+    const snap = await getDocs(q);
+    return snap.empty ? undefined : docToOrder(snap.docs[0]);
   }
-
-  // ---- persistence helpers (localStorage stand-in for Firestore) ----
 
   private nextOrderNumber(): string {
-    let n = 1000;
-    try {
-      n = parseInt(localStorage.getItem(COUNTER_KEY) ?? '1000', 10) + 1;
-      localStorage.setItem(COUNTER_KEY, String(n));
-    } catch {
-      n = Math.floor(1000 + Math.random() * 9000);
-    }
-    return `CG-${n}`;
-  }
-
-  private save(order: Order): void {
-    try {
-      const all = this.loadAll();
-      all.push(order);
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(all));
-    } catch {
-      // ignore storage failures in this local stand-in
-    }
-  }
-
-  private loadAll(): Order[] {
-    try {
-      const raw = localStorage.getItem(ORDERS_KEY);
-      return raw ? (JSON.parse(raw) as Order[]) : [];
-    } catch {
-      return [];
-    }
+    return `CG-${Math.floor(1000 + Math.random() * 9000)}`;
   }
 }

@@ -7,13 +7,13 @@
       <a routerLink="/menu">Shop</a> to order ahead.)
     </p>
 
-    @if (upcoming.length === 0) {
+    @if (upcoming().length === 0) {
       <div class="card empty">
         <p>No popups are scheduled right now, check back soon!</p>
       </div>
     } @else {
       <div class="events">
-        @for (event of upcoming; track event.id) {
+        @for (event of upcoming(); track event.id) {
           <article class="card event">
             <!-- Event header -->
             <div class="event-head">
