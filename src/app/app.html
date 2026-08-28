@@ -5,3 +5,12 @@
 </main>
 
 <app-site-footer />
+
+@if (idle.showWarning()) {
+  <div class="idle-warning">
+    <span class="idle-warning-text">
+      You've been inactive for a while — you'll be signed out in 2 minutes.
+    </span>
+    <button class="idle-stay-btn" (click)="idle.staySignedIn()">Stay signed in</button>
+  </div>
+}

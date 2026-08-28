@@ -27,6 +27,7 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     status: data['status'],
     paymentMethod: data['paymentMethod'],
     paymentStatus: data['paymentStatus'],
+    squarePaymentId: data['squarePaymentId'],
     wantsEmailConfirmation: data['wantsEmailConfirmation'] ?? false,
     createdAt: (data['createdAt'] as Timestamp).toDate(),
   };

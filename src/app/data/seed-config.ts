@@ -6,7 +6,8 @@ export const SEED_CONFIG: AppConfig = {
   defaultLeadTimeDays: 3, // order Mon → earliest pickup Thu
   blackoutDates: [],      // admin adds vacation / sold-out days here
   pickupLocation: 'Corporate Lake Properties, 4804 John Garry Dr, Columbia, MO',
-  contactEmail: 'hello@chloegstreats.com',
+  contactEmail: 'chloegshomemadetreats@gmail.com',
+  taxRatePercent: 0,
   cottageFoodDisclaimer:
     'This product is prepared in a kitchen not subject to inspection by the Missouri Department of Health and Senior Services.',
 };

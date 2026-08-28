@@ -31,6 +31,17 @@
   color: #b8b0a6;
   line-height: 1.5;
 }
+.admin-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: #4a443f;
+  text-decoration: none;
+
+  &:hover { color: #8d857b; text-decoration: none; }
+}
+
 .copyright {
   font-size: 0.7rem;
   letter-spacing: 0.1em;

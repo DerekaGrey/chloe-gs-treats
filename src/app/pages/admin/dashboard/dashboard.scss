@@ -1,0 +1,44 @@
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.admin-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.admin-nav-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.5rem;
+  background: var(--color-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: var(--color-ink);
+  transition: box-shadow 0.15s, transform 0.15s;
+
+  &:hover {
+    box-shadow: var(--shadow-soft);
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+}
+
+.nav-icon { font-size: 1.75rem; }
+
+.nav-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.nav-desc {
+  font-size: 0.8rem;
+  color: var(--color-ink-soft);
+}

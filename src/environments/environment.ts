@@ -5,6 +5,12 @@
  */
 export const environment = {
   production: false,
+  square: {
+    // Sandbox credentials — swap for production values when going live
+    applicationId: 'sandbox-sq0idb-nMpdYXWOtm64yd6SMV0fVg',
+    locationId: 'LZDNJQW0XEQV1',
+    scriptUrl: 'https://sandbox.web.squarecdn.com/v1/square.js',
+  },
   firebase: {
     apiKey: 'AIzaSyD7n3Kb_KnWcPSder7lByLsf0ge9qHvaP0',
     authDomain: 'chloe-gs-treats.firebaseapp.com',

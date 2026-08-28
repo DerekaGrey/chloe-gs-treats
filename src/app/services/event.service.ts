@@ -38,6 +38,14 @@ export class EventService {
     );
   }
 
+  getAll(): PopupEvent[] {
+    return this._events();
+  }
+
+  getById(id: string): PopupEvent | undefined {
+    return this._events().find(e => e.id === id);
+  }
+
   getUpcoming(): PopupEvent[] {
     const now = new Date();
     return this._events()

@@ -1,0 +1,63 @@
+<div class="container section">
+  <header class="page-header">
+    <div>
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Events</h1>
+    </div>
+    <a routerLink="/admin/events/new" class="btn btn-primary">+ New Event</a>
+  </header>
+
+  @if (error()) {
+    <p class="field-error list-error">{{ error() }}</p>
+  }
+
+  @if (events.length === 0) {
+    <p class="empty">No events yet. <a routerLink="/admin/events/new">Add one.</a></p>
+  } @else {
+    <div class="event-list">
+      @for (event of events; track event.id) {
+        <div class="event-card card">
+          <div class="event-main">
+            <div class="event-info">
+              <div class="event-title-row">
+                <span class="event-title">{{ event.title }}</span>
+                <span class="status-badge" [class]="statusClass(event)">
+                  {{ statusLabel(event) }}
+                </span>
+              </div>
+              <div class="event-meta">
+                <span>{{ formatDate(event.startsAt) }}</span>
+                <span class="sep">·</span>
+                <span>{{ formatTime(event.startsAt) }} – {{ formatTime(event.endsAt) }}</span>
+              </div>
+              <div class="event-location">{{ event.location }}</div>
+              @if (event.standMenu?.length) {
+                <div class="stand-menu-preview">
+                  @for (item of event.standMenu!; track item.name) {
+                    <span class="tag">{{ item.name }}</span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="event-actions">
+              <a [routerLink]="['/admin/events', event.id, 'edit']" class="btn btn-outline action-btn">Edit</a>
+              @if (canCancel(event)) {
+                <button
+                  class="btn btn-warning action-btn"
+                  [disabled]="workingId() === event.id"
+                  (click)="cancelEvent(event)"
+                >Cancel</button>
+              }
+              <button
+                class="btn btn-danger action-btn"
+                [disabled]="workingId() === event.id"
+                (click)="deleteEvent(event)"
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

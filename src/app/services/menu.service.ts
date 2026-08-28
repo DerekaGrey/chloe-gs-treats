@@ -41,6 +41,10 @@ export class MenuService {
     );
   }
 
+  getAll(): MenuItem[] {
+    return this._items();
+  }
+
   getAvailable(): MenuItem[] {
     return this._items().filter(i => i.available);
   }

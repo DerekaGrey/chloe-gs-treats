@@ -37,7 +37,7 @@ export interface MenuItem {
   sortOrder: number;
 }
 
-export type MenuCategory = 'cookies' | 'scones' | 'rolls' | 'treats' | 'custom';
+export type MenuCategory = 'cookies' | 'scones' | 'rolls' | 'treats' | 'bread' | 'custom';
 
 /** One purchasable pack size, e.g. { label: '6', quantity: 6, priceCents: 1000 }. */
 export interface PackTier {

@@ -44,6 +44,11 @@
   padding: 0.85rem 1rem;
   font-size: 0.9rem;
   margin: 1.25rem 0;
+
+  &.paid {
+    background: #eaf5ea;
+    border: 1px solid #bcdcbc;
+  }
 }
 .email-note { font-size: 0.85rem; color: var(--color-ink-soft); }
 .disclaimer {

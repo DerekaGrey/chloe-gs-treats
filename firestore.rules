@@ -2,21 +2,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Public collections: anyone can read
-    match /menuItems/{id}    { allow read: if true; }
-    match /popupEvents/{id}  { allow read: if true; }
-    match /config/{id}       { allow read: if true; }
+    // Public collections: anyone can read, admin can write
+    match /menuItems/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    match /popupEvents/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    match /config/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
 
-    // Orders: anyone can create (checkout flow); reads are open for now so
-    // the confirmation page can fetch by orderNumber. Tighten this in the
-    // admin phase (restrict reads to the order owner or an admin).
+    // Orders: anyone can create (checkout flow); reads are open so the
+    // confirmation page can fetch by orderNumber. Admin can update status.
     match /orders/{id} {
       allow create: if true;
       allow read:   if true;
+      allow update: if request.auth != null && request.auth.token.admin == true;
     }
 
-    // Everything else: deny by default (no admin writes yet until admin auth
-    // is implemented in phase 4+). Add "allow write: if request.auth.token.admin == true"
-    // once the admin custom claim is set up.
+    // Everything else: deny by default
   }
 }

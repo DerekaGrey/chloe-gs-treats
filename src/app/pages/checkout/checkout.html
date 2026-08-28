@@ -24,8 +24,11 @@
         </div>
 
         <div class="field">
-          <label for="phone">Phone (optional)</label>
+          <label for="phone">Phone *</label>
           <input id="phone" type="tel" formControlName="phone" autocomplete="tel" />
+          @if (form.controls.phone.touched && form.controls.phone.invalid) {
+            <p class="field-error">Please enter a phone number so we can reach you about your order.</p>
+          }
         </div>
 
         <div class="field">
@@ -50,12 +53,19 @@
           Email me an order confirmation
         </label>
 
-        <div class="pay-note">
-          <strong>Payment:</strong> Pay with Venmo or cash when you pick up your order.
-        </div>
+        <h2 class="payment-heading">Payment</h2>
+        <div id="card-container" class="card-container"></div>
+
+        @if (cardError()) {
+          <p class="field-error card-error">{{ cardError() }}</p>
+        }
 
         <button type="submit" class="btn btn-primary full" [disabled]="submitting()">
-          {{ submitting() ? 'Placing order...' : 'Place Order' }}
+          @if (submitting()) {
+            Processing payment...
+          } @else {
+            Pay {{ subtotalCents() | cents }}
+          }
         </button>
       </form>
 

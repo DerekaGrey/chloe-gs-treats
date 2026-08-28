@@ -18,6 +18,7 @@ function docToConfig(snap: DocumentSnapshot<DocumentData>): AppConfig {
     blackoutDates: ((d['blackoutDates'] ?? []) as Timestamp[]).map(t => t.toDate()),
     pickupLocation: d['pickupLocation'] ?? SEED_CONFIG.pickupLocation,
     contactEmail: d['contactEmail'] ?? SEED_CONFIG.contactEmail,
+    taxRatePercent: d['taxRatePercent'] ?? 0,
     cottageFoodDisclaimer: d['cottageFoodDisclaimer'] ?? SEED_CONFIG.cottageFoodDisclaimer,
   };
 }

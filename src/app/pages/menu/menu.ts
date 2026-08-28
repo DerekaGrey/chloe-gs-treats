@@ -15,6 +15,7 @@ const CATEGORY_LABELS: Record<MenuCategory, string> = {
   scones: 'Scones',
   rolls: 'Cinnamon Rolls',
   treats: 'Treats',
+  bread: 'Bread',
   custom: 'Custom Orders',
 };
 

@@ -1,0 +1,208 @@
+<div class="container section">
+  <header class="page-header">
+    <a routerLink="/admin/menu" class="back-link">← Menu Items</a>
+    <h1>{{ editId ? 'Edit Item' : 'New Item' }}</h1>
+  </header>
+
+  @if (form) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="item-form">
+
+      <!-- ── Basic info ──────────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Basic Info</h2>
+
+        <div class="field">
+          <label for="name">Name *</label>
+          <input id="name" type="text" formControlName="name" />
+          @if (form.get('name')?.invalid && form.get('name')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="description">Description *</label>
+          <textarea id="description" formControlName="description" rows="3"></textarea>
+          @if (form.get('description')?.invalid && form.get('description')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="category">Category *</label>
+            <select id="category" formControlName="category">
+              @for (cat of categories; track cat.value) {
+                <option [value]="cat.value">{{ cat.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field field-sm">
+            <label for="sortOrder">Sort Order</label>
+            <input id="sortOrder" type="number" formControlName="sortOrder" min="0" />
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="available" />
+            Show on menu
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isCustomOrder" />
+            Made-to-order (custom)
+          </label>
+        </div>
+      </section>
+
+      <!-- ── Pack pricing ───────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Pack Pricing</h2>
+        <p class="section-hint">One row per pack size. Price in dollars (e.g. 12.00).</p>
+
+        <div formArrayName="packPricing">
+          @for (tier of packPricingArray.controls; track $index; let i = $index) {
+            <div [formGroupName]="i" class="array-row">
+              <div class="field field-sm">
+                <label>Label</label>
+                <input type="text" formControlName="label" placeholder="e.g. 6" />
+              </div>
+              <div class="field field-sm">
+                <label>Qty</label>
+                <input type="number" formControlName="quantity" min="1" />
+              </div>
+              <div class="field field-sm">
+                <label>Price ($)</label>
+                <input type="number" formControlName="priceDollars" min="0" step="0.01" placeholder="0.00" />
+              </div>
+              <button
+                type="button"
+                class="remove-btn"
+                [disabled]="packPricingArray.length === 1"
+                (click)="removePackTier(i)"
+              >✕</button>
+            </div>
+          }
+        </div>
+        <button type="button" class="add-row-btn" (click)="addPackTier()">+ Add pack size</button>
+      </section>
+
+      <!-- ── Option groups ──────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Option Groups</h2>
+        <p class="section-hint">For choices like icing flavour, drizzle, or nut preference. Leave empty if none.</p>
+
+        <div formArrayName="optionGroups">
+          @for (group of optionGroupsArray.controls; track $index; let gi = $index) {
+            <div [formGroupName]="gi" class="option-group-block">
+              <div class="option-group-header">
+                <div class="field">
+                  <label>Group name (e.g. Icing)</label>
+                  <input type="text" formControlName="name" />
+                </div>
+                <label class="checkbox-label inline">
+                  <input type="checkbox" formControlName="required" />
+                  Required
+                </label>
+                <button type="button" class="remove-btn" (click)="removeOptionGroup(gi)">✕</button>
+              </div>
+
+              <div formArrayName="options">
+                @for (opt of optionsFor(gi).controls; track $index; let oi = $index) {
+                  <div [formGroupName]="oi" class="array-row indent">
+                    <div class="field">
+                      <label>Option label</label>
+                      <input type="text" formControlName="label" placeholder="e.g. Cream Cheese Icing" />
+                    </div>
+                    <div class="field field-sm">
+                      <label>Extra price (¢)</label>
+                      <input type="number" formControlName="priceCentsDelta" />
+                    </div>
+                    <button
+                      type="button"
+                      class="remove-btn"
+                      [disabled]="optionsFor(gi).length === 1"
+                      (click)="removeOption(gi, oi)"
+                    >✕</button>
+                  </div>
+                }
+              </div>
+              <button type="button" class="add-row-btn" (click)="addOption(gi)">+ Add option</button>
+            </div>
+          }
+        </div>
+        <button type="button" class="add-row-btn" (click)="addOptionGroup()">+ Add option group</button>
+      </section>
+
+      <!-- ── Photo ──────────────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Photo</h2>
+
+        <div class="photo-area">
+          @if (previewUrl || currentPhotoUrl) {
+            <div class="photo-preview">
+              <img [src]="previewUrl ?? currentPhotoUrl" alt="Item photo preview" />
+              @if (previewUrl) {
+                <span class="photo-badge">New — not saved yet</span>
+              }
+            </div>
+          } @else {
+            <div class="photo-placeholder">No photo</div>
+          }
+
+          <div class="photo-actions">
+            <label class="btn btn-outline upload-label">
+              {{ (previewUrl || currentPhotoUrl) ? 'Change photo' : 'Upload photo' }}
+              <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden />
+            </label>
+            @if (previewUrl || currentPhotoUrl) {
+              <button type="button" class="btn-remove-photo" (click)="removePhoto()">Remove</button>
+            }
+          </div>
+        </div>
+
+        @if (uploadProgress() !== null) {
+          <div class="upload-progress-wrap">
+            <div class="upload-progress-bar" [style.width.%]="uploadProgress()"></div>
+            <span class="upload-pct">{{ uploadProgress() }}%</span>
+          </div>
+        }
+
+        <p class="section-hint">JPG, PNG, or WebP · Max 5 MB. Photo is uploaded when you save.</p>
+      </section>
+
+      <!-- ── Ingredients & allergens ────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Ingredients & Allergens</h2>
+
+        <div class="field">
+          <label for="ingredients">Ingredients</label>
+          <textarea id="ingredients" formControlName="ingredients" rows="4"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="allergens">Allergens <span class="hint-inline">(comma-separated, e.g. wheat, dairy, eggs)</span></label>
+          <input id="allergens" type="text" formControlName="allergens" />
+        </div>
+
+        <div class="field field-sm">
+          <label for="leadTime">Lead time override (days, optional)</label>
+          <input id="leadTime" type="number" formControlName="leadTimeDaysOverride" min="1" />
+        </div>
+      </section>
+
+      <!-- ── Submit ─────────────────────────────────── -->
+      @if (error()) {
+        <p class="field-error save-error">{{ error() }}</p>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/admin/menu" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : (editId ? 'Save Changes' : 'Create Item') }}
+        </button>
+      </div>
+
+    </form>
+  }
+</div>

@@ -39,6 +39,13 @@ testem.log
 /typings
 __screenshots__/
 
+# Firebase service account keys — never commit these
+service-account*.json
+
+# Functions dependencies
+functions/node_modules/
+functions/lib/
+
 # System files
 .DS_Store
 Thumbs.db

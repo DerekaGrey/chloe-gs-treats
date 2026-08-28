@@ -1,0 +1,100 @@
+<div class="container section">
+  <header class="page-header">
+    <a routerLink="/admin/events" class="back-link">← Events</a>
+    <h1>{{ editId ? 'Edit Event' : 'New Event' }}</h1>
+  </header>
+
+  @if (form) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="event-form">
+
+      <!-- ── Details ────────────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Details</h2>
+
+        <div class="field">
+          <label for="title">Title *</label>
+          <input id="title" type="text" formControlName="title" placeholder="e.g. Saturday Morning Popup" />
+          @if (form.get('title')?.invalid && form.get('title')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="startsAt">Starts *</label>
+            <input id="startsAt" type="datetime-local" formControlName="startsAt" />
+            @if (form.get('startsAt')?.invalid && form.get('startsAt')?.touched) {
+              <p class="field-error">Required.</p>
+            }
+          </div>
+          <div class="field">
+            <label for="endsAt">Ends *</label>
+            <input id="endsAt" type="datetime-local" formControlName="endsAt" />
+            @if (form.get('endsAt')?.invalid && form.get('endsAt')?.touched) {
+              <p class="field-error">Required.</p>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="location">Location *</label>
+          <input id="location" type="text" formControlName="location" placeholder="e.g. Corporate Lake Properties, Columbia, MO" />
+          @if (form.get('location')?.invalid && form.get('location')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" formControlName="description" rows="3" placeholder="What's special about this one?"></textarea>
+        </div>
+
+        @if (editId) {
+          <div class="field field-sm">
+            <label for="status">Status</label>
+            <select id="status" formControlName="status">
+              <option value="scheduled">Scheduled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        }
+      </section>
+
+      <!-- ── Stand menu ─────────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Stand Menu</h2>
+        <p class="section-hint">What you'll be selling at the stand that day. Leave empty if not planned yet.</p>
+
+        <div formArrayName="standMenu">
+          @for (row of standMenuArray.controls; track $index; let i = $index) {
+            <div [formGroupName]="i" class="array-row">
+              <div class="field">
+                <label>Item name</label>
+                <input type="text" formControlName="name" placeholder="e.g. Brown Butter Chocolate Chip Cookies" />
+              </div>
+              <div class="field field-md">
+                <label>Price label</label>
+                <input type="text" formControlName="priceLabel" placeholder="e.g. 3 for $6" />
+              </div>
+              <button type="button" class="remove-btn" (click)="removeStandMenuRow(i)">✕</button>
+            </div>
+          }
+        </div>
+        <button type="button" class="add-row-btn" (click)="addStandMenuRow()">+ Add item</button>
+      </section>
+
+      <!-- ── Submit ─────────────────────────────────── -->
+      @if (error()) {
+        <p class="field-error save-error">{{ error() }}</p>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/admin/events" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : (editId ? 'Save Changes' : 'Create Event') }}
+        </button>
+      </div>
+
+    </form>
+  }
+</div>

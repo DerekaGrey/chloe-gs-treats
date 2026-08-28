@@ -1,0 +1,29 @@
+<div class="container section">
+  <header class="admin-header">
+    <h1>Admin</h1>
+    <button class="btn btn-outline" (click)="signOut()">Sign out</button>
+  </header>
+
+  <nav class="admin-nav">
+    <a routerLink="/admin/menu" class="admin-nav-card">
+      <span class="nav-icon">🧁</span>
+      <span class="nav-label">Menu Items</span>
+      <span class="nav-desc">Add, edit, or hide items</span>
+    </a>
+    <a routerLink="/admin/events" class="admin-nav-card">
+      <span class="nav-icon">📅</span>
+      <span class="nav-label">Events</span>
+      <span class="nav-desc">Schedule popup stands</span>
+    </a>
+    <a routerLink="/admin/orders" class="admin-nav-card">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Orders</span>
+      <span class="nav-desc">Track and update orders</span>
+    </a>
+    <a routerLink="/admin/settings" class="admin-nav-card">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+      <span class="nav-desc">Email, location, lead time, blackout dates</span>
+    </a>
+  </nav>
+</div>

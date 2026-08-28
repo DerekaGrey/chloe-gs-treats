@@ -1,0 +1,66 @@
+<div class="container section">
+  <header class="page-header">
+    <div>
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Menu Items</h1>
+    </div>
+    <a routerLink="/admin/menu/new" class="btn btn-primary">+ New Item</a>
+  </header>
+
+  @if (error()) {
+    <p class="field-error list-error">{{ error() }}</p>
+  }
+
+  @if (items.length === 0) {
+    <p class="empty">No menu items yet. <a routerLink="/admin/menu/new">Add one.</a></p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Pricing</th>
+            <th>Available</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items; track item.id) {
+            <tr [class.unavailable]="!item.available">
+              <td class="name-cell">{{ item.name }}</td>
+              <td>
+                <span class="tag">{{ categoryLabel(item.category) }}</span>
+              </td>
+              <td class="pricing-cell">
+                @for (tier of item.packPricing; track tier.label) {
+                  <span class="price-pill">{{ tier.label }} · ${{ (tier.priceCents / 100).toFixed(2) }}</span>
+                }
+              </td>
+              <td>
+                <button
+                  class="toggle-btn"
+                  [class.on]="item.available"
+                  [disabled]="togglingId() === item.id"
+                  (click)="toggleAvailability(item)"
+                >
+                  {{ item.available ? 'Shown' : 'Hidden' }}
+                </button>
+              </td>
+              <td class="actions-cell">
+                <a [routerLink]="['/admin/menu', item.id, 'edit']" class="btn btn-outline action-btn">Edit</a>
+                <button
+                  class="btn btn-danger action-btn"
+                  [disabled]="deletingId() === item.id"
+                  (click)="deleteItem(item)"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

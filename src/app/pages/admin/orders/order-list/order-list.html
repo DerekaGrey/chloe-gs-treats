@@ -1,0 +1,130 @@
+<div class="container section">
+  <header class="page-header">
+    <div>
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Orders</h1>
+    </div>
+  </header>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs">
+    @for (f of filters; track f.value) {
+      <button
+        class="filter-tab"
+        [class.active]="activeFilter() === f.value"
+        (click)="activeFilter.set(f.value)"
+      >
+        {{ f.label }}
+        @if (countFor(f.value) > 0) {
+          <span class="tab-count">{{ countFor(f.value) }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="field-error list-error">{{ error() }}</p>
+  }
+
+  @if (filteredOrders().length === 0) {
+    <p class="empty">No orders here.</p>
+  } @else {
+    <div class="order-list">
+      @for (order of filteredOrders(); track order.id) {
+        <div class="order-card card">
+
+          <!-- ── Summary row ── -->
+          <div class="order-summary" (click)="toggleExpand(order.id!)">
+            <div class="order-left">
+              <span class="order-number">{{ order.orderNumber }}</span>
+              <span class="status-badge" [class]="statusClass(order.status)">
+                {{ statusLabel(order.status) }}
+              </span>
+              <span class="payment-badge" [class.paid]="order.paymentStatus === 'paid'">
+                {{ order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid' }}
+              </span>
+            </div>
+            <div class="order-center">
+              <span class="customer-name">{{ order.customer.name }}</span>
+              <span class="pickup-date">Pickup: {{ formatDate(order.pickupDate) }}</span>
+            </div>
+            <div class="order-right">
+              <span class="order-total">{{ order.totalCents | cents }}</span>
+              <span class="expand-icon">{{ isExpanded(order.id!) ? '▲' : '▼' }}</span>
+            </div>
+          </div>
+
+          <!-- ── Expanded detail ── -->
+          @if (isExpanded(order.id!)) {
+            <div class="order-detail">
+              <div class="detail-grid">
+
+                <div class="detail-section">
+                  <h3>Customer</h3>
+                  <p>{{ order.customer.name }}</p>
+                  <p>{{ order.customer.email }}</p>
+                  @if (order.customer.phone) {
+                    <p>{{ order.customer.phone }}</p>
+                  }
+                </div>
+
+                <div class="detail-section">
+                  <h3>Items</h3>
+                  @for (item of order.items; track item.menuItemId) {
+                    <div class="line-item">
+                      <span class="line-name">
+                        {{ item.packCount }}× {{ item.nameSnapshot }}
+                        <span class="line-pack">({{ item.packLabelSnapshot }}-pack)</span>
+                      </span>
+                      @for (opt of item.selectedOptions; track opt.groupName) {
+                        <span class="line-option">{{ opt.groupName }}: {{ opt.optionLabel }}</span>
+                      }
+                      <span class="line-price">{{ item.lineTotalCents | cents }}</span>
+                    </div>
+                  }
+                  <div class="order-totals">
+                    <span>Total</span>
+                    <span>{{ order.totalCents | cents }}</span>
+                  </div>
+                </div>
+
+                @if (order.specialRequests) {
+                  <div class="detail-section">
+                    <h3>Special Requests</h3>
+                    <p>{{ order.specialRequests }}</p>
+                  </div>
+                }
+
+              </div>
+
+              <!-- ── Actions ── -->
+              <div class="order-actions">
+                @if (canAdvance(order.status)) {
+                  <button
+                    class="btn btn-primary action-btn"
+                    [disabled]="workingId() === order.id"
+                    (click)="advance(order)"
+                  >{{ nextStatusLabel(order.status) }}</button>
+                }
+                @if (canCancel(order.status)) {
+                  <button
+                    class="btn btn-outline action-btn"
+                    [disabled]="workingId() === order.id"
+                    (click)="cancel(order)"
+                  >Cancel Order</button>
+                }
+                <button
+                  class="btn btn-outline action-btn"
+                  [class.payment-paid]="order.paymentStatus === 'paid'"
+                  [disabled]="workingId() === order.id"
+                  (click)="togglePayment(order)"
+                >{{ order.paymentStatus === 'paid' ? 'Mark Unpaid' : 'Mark Paid' }}</button>
+              </div>
+            </div>
+          }
+
+        </div>
+      }
+    </div>
+  }
+</div>

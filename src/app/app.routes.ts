@@ -47,6 +47,10 @@ export const routes: Routes = [
       import('./pages/confirmation/confirmation').then((m) => m.Confirmation),
     title: 'Order Confirmed · Chloe G\'s',
   },
+  {
+    path: 'admin',
+    loadChildren: () => import('./pages/admin/admin.routes').then((m) => m.adminRoutes),
+  },
   // Unknown URLs go home.
   { path: '**', redirectTo: '' },
 ];

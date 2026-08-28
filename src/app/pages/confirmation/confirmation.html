@@ -29,9 +29,14 @@
           <p>{{ cfg().pickupLocation }}</p>
         </div>
 
-        <div class="pay-note">
-          <strong>Payment:</strong> Please pay {{ o.totalCents | cents }} via Venmo or
-          cash when you pick up.
+        <div class="pay-note" [class.paid]="o.paymentStatus === 'paid'">
+          @if (o.paymentStatus === 'paid') {
+            <strong>Paid:</strong> {{ o.totalCents | cents }} charged to your card.
+            Nothing to pay at pickup.
+          } @else {
+            <strong>Payment:</strong> Please pay {{ o.totalCents | cents }} via Venmo or
+            cash when you pick up.
+          }
         </div>
 
         @if (o.wantsEmailConfirmation) {

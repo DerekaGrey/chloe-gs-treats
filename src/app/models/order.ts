@@ -12,8 +12,9 @@ export interface Order {
   pickupDate: Date;
   specialRequests?: string;
   status: OrderStatus;
-  paymentMethod: 'pay_at_pickup'; // v1 only
+  paymentMethod: 'pay_at_pickup' | 'square';
   paymentStatus: 'unpaid' | 'paid';
+  squarePaymentId?: string;       // set by the processPayment Cloud Function
   wantsEmailConfirmation: boolean;
   createdAt: Date;
 }

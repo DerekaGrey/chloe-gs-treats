@@ -1,0 +1,108 @@
+<div class="container section">
+  <header class="page-header">
+    <div>
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Settings</h1>
+    </div>
+  </header>
+
+  @if (form) {
+    <form [formGroup]="form" (ngSubmit)="save()" class="config-form">
+
+      <!-- ── Contact & location ──────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Contact & Location</h2>
+
+        <div class="field">
+          <label for="contactEmail">Contact Email *</label>
+          <input id="contactEmail" type="email" formControlName="contactEmail" />
+          @if (form.get('contactEmail')?.invalid && form.get('contactEmail')?.touched) {
+            <p class="field-error">Enter a valid email address.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="pickupLocation">Pickup Location *</label>
+          <input id="pickupLocation" type="text" formControlName="pickupLocation" />
+          <p class="field-hint">Shown on the schedule page and at checkout.</p>
+          @if (form.get('pickupLocation')?.invalid && form.get('pickupLocation')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+      </section>
+
+      <!-- ── Order settings ─────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Order Settings</h2>
+
+        <div class="field field-sm">
+          <label for="leadTime">Minimum lead time (days) *</label>
+          <input id="leadTime" type="number" formControlName="defaultLeadTimeDays" min="1" max="30" />
+          <p class="field-hint">Customers must order at least this many days before pickup. Currently {{ form.get('defaultLeadTimeDays')?.value }} days.</p>
+          @if (form.get('defaultLeadTimeDays')?.invalid && form.get('defaultLeadTimeDays')?.touched) {
+            <p class="field-error">Must be between 1 and 30.</p>
+          }
+        </div>
+      </section>
+
+      <!-- ── Blackout dates ─────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Blackout Dates</h2>
+        <p class="section-hint">Dates customers cannot select for pickup — vacations, holidays, sold-out days.</p>
+
+        <div class="blackout-add">
+          <input
+            type="date"
+            class="date-input"
+            [(ngModel)]="newBlackoutDate"
+            [ngModelOptions]="{ standalone: true }"
+          />
+          <button type="button" class="btn btn-outline add-date-btn" (click)="addBlackoutDate()">
+            Add Date
+          </button>
+        </div>
+
+        @if (blackoutDates.length === 0) {
+          <p class="no-dates">No blackout dates set.</p>
+        } @else {
+          <ul class="blackout-list">
+            @for (date of blackoutDates; track date.toISOString(); let i = $index) {
+              <li class="blackout-item">
+                <span>{{ formatDate(date) }}</span>
+                <button type="button" class="remove-date-btn" (click)="removeBlackoutDate(i)">Remove</button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <!-- ── Disclaimer ──────────────────────────────── -->
+      <section class="form-section">
+        <h2 class="section-title">Cottage Food Disclaimer</h2>
+        <p class="section-hint">Required legal text shown at checkout and on item pages.</p>
+
+        <div class="field">
+          <textarea formControlName="cottageFoodDisclaimer" rows="4"></textarea>
+          @if (form.get('cottageFoodDisclaimer')?.invalid && form.get('cottageFoodDisclaimer')?.touched) {
+            <p class="field-error">Required.</p>
+          }
+        </div>
+      </section>
+
+      <!-- ── Submit ─────────────────────────────────── -->
+      @if (error()) {
+        <p class="field-error save-error">{{ error() }}</p>
+      }
+
+      <div class="form-actions">
+        @if (saved()) {
+          <span class="saved-msg">✓ Settings saved</span>
+        }
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save Settings' }}
+        </button>
+      </div>
+
+    </form>
+  }
+</div>

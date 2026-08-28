@@ -41,7 +41,7 @@ await setDoc(doc(db, 'config', 'global'), {
   blackoutDates: [],
   orderCounter: 1000,
   pickupLocation: LOCATION,
-  contactEmail: 'hello@chloegstreats.com',
+  contactEmail: 'chloegshomemadetreats@gmail.com',
   cottageFoodDisclaimer:
     'This product is prepared in a kitchen not subject to inspection by the Missouri Department of Health and Senior Services.',
 });
@@ -51,10 +51,11 @@ console.log('config/global written');
 // menuItems
 // ---------------------------------------------------------------------------
 const menuItems = [
+  // ── Cookies ──────────────────────────────────────────────────────────────
   {
     id: 'bb-choc-chip-cookies',
     name: 'Brown Butter Chocolate Chip Cookies',
-    description: 'Rich brown-butter dough with semi-sweet chocolate chips.',
+    description: 'Rich brown-butter sourdough cookies with semi-sweet and milk chocolate chips.',
     category: 'cookies',
     photoUrls: ['/images/bb-choc-chip-cookies.jpg'],
     packPricing: [
@@ -65,13 +66,13 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, brown butter, semi-sweet chocolate chips, eggs, salt, baking soda, vanilla extract.',
+    ingredients: 'Flour, sugar, brown sugar, unsalted butter, baking soda, corn starch, salt, eggs, vanilla extract, sourdough discard (flour and water), semi-sweet chocolate chips, milk chocolate chips.',
     sortOrder: 10,
   },
   {
     id: 'smores-cookies',
-    name: "S'mores Cookies",
-    description: 'Graham, toasted marshmallow, and melty chocolate in cookie form.',
+    name: "Gourmet S'mores Cookies",
+    description: 'Graham, dehydrated marshmallow, and Hershey\'s chocolate in sourdough cookie form.',
     category: 'cookies',
     photoUrls: [],
     packPricing: [
@@ -82,13 +83,13 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, butter, graham crackers, marshmallow, chocolate, eggs, salt, baking soda, vanilla extract.',
+    ingredients: "Flour, sugar, brown sugar, unsalted butter, baking soda, corn starch, salt, eggs, vanilla extract, sourdough discard (flour and water), semi-sweet chocolate chips, graham crackers, dehydrated marshmallows, marshmallows, Hershey's chocolate.",
     sortOrder: 20,
   },
   {
     id: 'snickerdoodle-cookies',
     name: 'Snickerdoodle Cookies',
-    description: 'Soft cinnamon-sugar classic.',
+    description: 'Soft cinnamon-sugar sourdough classic.',
     category: 'cookies',
     photoUrls: ['/images/snickerdoodle-cookies.jpg'],
     packPricing: [
@@ -99,9 +100,27 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, butter, cinnamon, cream of tartar, eggs, salt, baking soda, vanilla extract.',
+    ingredients: 'Unsalted butter, sugar, sourdough discard (flour and water), egg, vanilla extract, flour, baking soda, cream of tartar, salt, ground cinnamon.',
     sortOrder: 30,
   },
+  {
+    id: 'cookie-butter-cookies',
+    name: 'Cookie Butter Cookies',
+    description: 'Sourdough cookies loaded with Biscoff, cookie butter, and white chocolate chips.',
+    category: 'cookies',
+    photoUrls: [],
+    packPricing: [
+      { label: '3', quantity: 3, priceCents: 800 },
+      { label: '6', quantity: 6, priceCents: 1400 },
+      { label: '12', quantity: 12, priceCents: 2600 },
+    ],
+    isCustomOrder: false,
+    available: true,
+    allergens: ['wheat', 'dairy', 'eggs'],
+    ingredients: 'Flour, sugar, brown sugar, unsalted butter, baking soda, corn starch, salt, eggs, vanilla extract, sourdough discard (flour and water), white chocolate chips, Biscoff cookies, cookie butter.',
+    sortOrder: 40,
+  },
+  // ── Scones ───────────────────────────────────────────────────────────────
   {
     id: 'choc-chip-scones',
     name: 'Chocolate Chip Scones',
@@ -109,46 +128,35 @@ const menuItems = [
     category: 'scones',
     photoUrls: [],
     packPricing: [
-      { label: '4', quantity: 4, priceCents: 1400 },
-      { label: '8', quantity: 8, priceCents: 2600 },
+      { label: '4', quantity: 4, priceCents: 1200 },
+      { label: '8', quantity: 8, priceCents: 2200 },
     ],
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, salt, baking powder, butter, semi-sweet chocolate chips, sourdough discard, heavy cream, eggs, vanilla extract.',
-    sortOrder: 40,
+    ingredients: 'Flour, sugar, salt, baking powder, unsalted butter, semi-sweet chocolate chips, sourdough discard (flour and water), heavy cream, eggs, vanilla extract.',
+    sortOrder: 50,
   },
   {
     id: 'carrot-cake-scones',
     name: 'Carrot Cake Scones',
-    description: 'Spiced carrot scones, choose with or without nuts.',
+    description: 'Warmly spiced carrot scones with cream cheese morsels.',
     category: 'scones',
     photoUrls: ['/images/carrot-cake-scones.jpg'],
     packPricing: [
       { label: '4', quantity: 4, priceCents: 1400 },
       { label: '8', quantity: 8, priceCents: 2600 },
     ],
-    optionGroups: [
-      {
-        name: 'Nuts',
-        required: true,
-        selectionType: 'single',
-        options: [
-          { label: 'With nuts', priceCentsDelta: 0 },
-          { label: 'No-nut', priceCentsDelta: 0 },
-        ],
-      },
-    ],
     isCustomOrder: false,
     available: true,
-    allergens: ['wheat', 'dairy', 'eggs', 'tree nuts'],
-    ingredients: 'Flour, sugar, salt, baking powder, butter, carrots, cinnamon, sourdough discard, heavy cream, eggs, walnuts (omitted for no-nut), vanilla extract.',
-    sortOrder: 50,
+    allergens: ['wheat', 'dairy', 'eggs'],
+    ingredients: 'Flour, brown sugar, salt, baking soda, baking powder, unsalted butter, ground ginger, nutmeg, cloves, cinnamon, cream cheese morsels, carrots, sourdough discard (flour and water), milk, eggs, vanilla extract, powdered sugar.',
+    sortOrder: 60,
   },
   {
     id: 'apple-cinnamon-scones',
     name: 'Apple Cinnamon Scones',
-    description: 'Cinnamon-spiced sourdough scones with apple.',
+    description: 'Cinnamon and nutmeg sourdough scones with apple and apple sauce.',
     category: 'scones',
     photoUrls: [],
     packPricing: [
@@ -158,13 +166,13 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, salt, baking powder, butter, apples, cinnamon, sourdough discard, heavy cream, eggs, vanilla extract.',
-    sortOrder: 60,
+    ingredients: 'Flour, sugar, salt, baking powder, unsalted butter, cinnamon, nutmeg, apples, apple sauce, sourdough discard (flour and water), heavy cream, eggs, vanilla extract, powdered sugar, brown sugar, milk.',
+    sortOrder: 70,
   },
   {
     id: 'lemon-blueberry-scones',
     name: 'Lemon Blueberry Scones',
-    description: 'Bright lemon and blueberry sourdough scones.',
+    description: 'Bright lemon zest and blueberry sourdough scones.',
     category: 'scones',
     photoUrls: [],
     packPricing: [
@@ -174,13 +182,46 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, salt, baking powder, butter, blueberries, lemon, sourdough discard, heavy cream, eggs, vanilla extract.',
-    sortOrder: 70,
+    ingredients: 'Flour, sugar, baking powder, salt, unsalted butter, blueberries, eggs, sourdough discard (flour and water), heavy cream, vanilla extract, powdered sugar, lemon zest, lemon juice.',
+    sortOrder: 80,
   },
+  {
+    id: 'strawberries-cream-scones',
+    name: 'Strawberries and Cream Scones',
+    description: 'Sourdough scones with cream cheese morsels, fresh and dehydrated strawberries.',
+    category: 'scones',
+    photoUrls: [],
+    packPricing: [
+      { label: '4', quantity: 4, priceCents: 1400 },
+      { label: '8', quantity: 8, priceCents: 2600 },
+    ],
+    isCustomOrder: false,
+    available: true,
+    allergens: ['wheat', 'dairy', 'eggs'],
+    ingredients: 'Flour, sugar, salt, baking powder, unsalted butter, cream cheese morsels, strawberries, sourdough discard (flour and salt), heavy cream, eggs, vanilla extract, powdered sugar, dehydrated strawberries.',
+    sortOrder: 90,
+  },
+  {
+    id: 'earl-grey-scones',
+    name: 'Earl Grey Scones',
+    description: 'Delicate sourdough scones infused with earl grey tea and vanilla bean.',
+    category: 'scones',
+    photoUrls: [],
+    packPricing: [
+      { label: '4', quantity: 4, priceCents: 1400 },
+      { label: '8', quantity: 8, priceCents: 2600 },
+    ],
+    isCustomOrder: false,
+    available: true,
+    allergens: ['wheat', 'dairy', 'eggs'],
+    ingredients: 'Flour, sugar, salt, baking powder, unsalted butter, earl grey tea leaves, sourdough discard (flour and water), heavy cream, eggs, vanilla extract, powdered sugar, vanilla bean paste.',
+    sortOrder: 100,
+  },
+  // ── Rolls ────────────────────────────────────────────────────────────────
   {
     id: 'cinnamon-rolls',
     name: 'Cinnamon Rolls',
-    description: 'Soft sourdough cinnamon rolls. Comes with free icing, pick your flavour.',
+    description: 'Soft sourdough cinnamon rolls. Comes with your choice of icing.',
     category: 'rolls',
     photoUrls: [],
     packPricing: [
@@ -201,9 +242,10 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy', 'eggs'],
-    ingredients: 'Flour, sugar, butter, cinnamon, sourdough, milk, eggs, salt, yeast. Icing: powdered sugar, butter, vanilla (cream cheese added for cream-cheese icing).',
-    sortOrder: 80,
+    ingredients: 'Milk, flour, active sourdough levain (flour, water, sugar), unsalted butter, sugar, eggs, salt, brown sugar, cinnamon.',
+    sortOrder: 110,
   },
+  // ── Treats ───────────────────────────────────────────────────────────────
   {
     id: 'bb-rice-crispy-treats',
     name: 'Brown Butter Rice Crispy Treats',
@@ -229,8 +271,39 @@ const menuItems = [
     isCustomOrder: false,
     available: true,
     allergens: ['wheat', 'dairy'],
-    ingredients: 'Brown butter, marshmallow, crisped rice cereal. Optional milk- or white-chocolate drizzle.',
-    sortOrder: 90,
+    ingredients: 'Unsalted butter, rice cereal, kosher salt, marshmallows, vanilla extract. Optional milk or white chocolate drizzle.',
+    sortOrder: 120,
+  },
+  // ── Bread ────────────────────────────────────────────────────────────────
+  {
+    id: 'sourdough-sandwich-loaf',
+    name: 'Sourdough Sandwich Loaf',
+    description: 'Classic sourdough sandwich loaf with a soft crumb.',
+    category: 'bread',
+    photoUrls: [],
+    packPricing: [
+      { label: '1 loaf', quantity: 1, priceCents: 1200 },
+    ],
+    isCustomOrder: true,
+    available: true,
+    allergens: ['wheat'],
+    ingredients: 'Flour, water, active sourdough starter (flour and water), salt.',
+    sortOrder: 130,
+  },
+  {
+    id: 'jalapeno-cheddar-loaf',
+    name: 'Jalapeño Cheddar Sourdough Loaf',
+    description: 'Sourdough sandwich loaf loaded with pickled jalapeños and cheddar.',
+    category: 'bread',
+    photoUrls: [],
+    packPricing: [
+      { label: '1 loaf', quantity: 1, priceCents: 1400 },
+    ],
+    isCustomOrder: true,
+    available: true,
+    allergens: ['wheat', 'dairy'],
+    ingredients: 'Flour, water, active sourdough starter (flour and water), salt, pickled jalapeños, jalapeño juice, cheddar cheese.',
+    sortOrder: 140,
   },
 ];
 
