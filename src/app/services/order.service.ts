@@ -28,6 +28,7 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     deliveryUnit: data['deliveryUnit'],
     deliveryTime: data['deliveryTime'],
     deliveryFeeCents: data['deliveryFeeCents'] ?? 0,
+    tipCents: data['tipCents'] ?? 0,
     specialRequests: data['specialRequests'],
     status: data['status'],
     paymentMethod: data['paymentMethod'],
@@ -63,6 +64,7 @@ export class OrderService {
     deliveryUnit?: string;
     deliveryTime?: string;
     deliveryFeeCents: number;
+    tipCents: number;
     specialRequests?: string;
     wantsEmailConfirmation: boolean;
   }): Promise<Order> {
@@ -70,7 +72,7 @@ export class OrderService {
     const lines = this.cart.lines();
     const items = this.toLineItems(lines);
     const subtotalCents = items.reduce((s, i) => s + i.lineTotalCents, 0);
-    const totalCents = subtotalCents + input.deliveryFeeCents;
+    const totalCents = subtotalCents + input.deliveryFeeCents + input.tipCents;
     const orderNumber = this.nextOrderNumber();
 
     await addDoc(collection(db, 'orders'), {
@@ -86,6 +88,7 @@ export class OrderService {
       deliveryUnit: input.deliveryUnit ?? null,
       deliveryTime: input.deliveryTime ?? null,
       deliveryFeeCents: input.deliveryFeeCents,
+      tipCents: input.tipCents,
       specialRequests: input.specialRequests ?? null,
       status: 'pending',
       paymentMethod: 'pay_at_pickup',
@@ -108,6 +111,7 @@ export class OrderService {
       deliveryUnit: input.deliveryUnit,
       deliveryTime: input.deliveryTime,
       deliveryFeeCents: input.deliveryFeeCents,
+      tipCents: input.tipCents,
       specialRequests: input.specialRequests,
       status: 'pending',
       paymentMethod: 'pay_at_pickup',

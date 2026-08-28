@@ -101,6 +101,12 @@
                       <span class="line-price">{{ item.lineTotalCents | cents }}</span>
                     </div>
                   }
+                  @if (order.tipCents) {
+                    <div class="order-tip">
+                      <span>Tip</span>
+                      <span>{{ order.tipCents | cents }}</span>
+                    </div>
+                  }
                   <div class="order-totals">
                     <span>Total</span>
                     <span>{{ order.totalCents | cents }}</span>

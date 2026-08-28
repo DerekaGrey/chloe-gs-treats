@@ -238,6 +238,14 @@
   padding-left: 0.5rem;
 }
 
+.order-tip {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+  margin-top: 0.25rem;
+}
+
 .order-totals {
   display: flex;
   justify-content: space-between;

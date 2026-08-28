@@ -191,6 +191,60 @@
             <span>{{ DELIVERY_FEE_CENTS | cents }}</span>
           </div>
         }
+
+        <div class="tip-block">
+          <p class="tip-label">Add a tip?</p>
+          <div class="tip-grid">
+            <button
+              type="button"
+              class="tip-btn"
+              [class.selected]="tipChoice() === null"
+              (click)="setTipChoice(null)"
+            >
+              <span class="tip-btn-main">No tip</span>
+            </button>
+            @for (pct of TIP_PERCENTS; track pct) {
+              <button
+                type="button"
+                class="tip-btn"
+                [class.selected]="tipChoice() === pct"
+                (click)="setTipChoice(pct)"
+              >
+                <span class="tip-btn-main">{{ pct }}%</span>
+                <span class="tip-btn-sub">{{ tipPreviewCents(pct) | cents }}</span>
+              </button>
+            }
+            <button
+              type="button"
+              class="tip-btn"
+              [class.selected]="tipChoice() === 'custom'"
+              (click)="setTipChoice('custom')"
+            >
+              <span class="tip-btn-main">Custom</span>
+            </button>
+          </div>
+          @if (tipChoice() === 'custom') {
+            <div class="tip-custom">
+              <span class="tip-custom-prefix">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.25"
+                placeholder="0.00"
+                aria-label="Custom tip amount in dollars"
+                [value]="customTipDollars()"
+                (input)="customTipDollars.set($any($event.target).value)"
+              />
+            </div>
+          }
+        </div>
+
+        @if (tipCents() > 0) {
+          <div class="sum-delivery">
+            <span>Tip</span>
+            <span>{{ tipCents() | cents }}</span>
+          </div>
+        }
         <div class="sum-total">
           <span>Total</span>
           <strong>{{ totalCents() | cents }}</strong>

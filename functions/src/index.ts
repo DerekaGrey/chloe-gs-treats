@@ -52,6 +52,7 @@ function orderEmailHtml(opts: {
   orderNumber: string;
   lines: CartLine[];
   totalCents: number;
+  tipCents?: number;
   pickupDate: Date;
   pickupLocation: string;
   paymentMethod: string;
@@ -105,6 +106,10 @@ function orderEmailHtml(opts: {
 
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.tipCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Tip</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.tipCents)}</td>
+            </tr>` : ""}
             <tr>
               <td style="padding:12px 0 0;font-size:15px;font-weight:bold;color:#33291f">Total</td>
               <td style="padding:12px 0 0;text-align:right;font-size:15px;font-weight:bold;color:#C24038">${money(opts.totalCents)}</td>
@@ -153,6 +158,7 @@ function ownerEmailHtml(opts: {
   customerPhone?: string;
   lines: CartLine[];
   totalCents: number;
+  tipCents?: number;
   pickupDate: Date;
   paymentMethod: string;
   paymentStatus: string;
@@ -234,6 +240,10 @@ function ownerEmailHtml(opts: {
           <p style="margin:0 0 8px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Items</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.tipCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Tip</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.tipCents)}</td>
+            </tr>` : ""}
             <tr>
               <td style="padding:12px 0 0;font-size:15px;font-weight:bold;color:#33291f">Total</td>
               <td style="padding:12px 0 0;text-align:right;font-size:15px;font-weight:bold;color:#C24038">${money(opts.totalCents)}</td>
@@ -292,6 +302,7 @@ interface PaymentRequest {
   deliveryUnit?: string;
   deliveryTime?: string;
   deliveryFeeCents: number;
+  tipCents?: number;
   specialRequests?: string;
   wantsEmailConfirmation: boolean;
   cartLines: CartLine[];
@@ -319,7 +330,18 @@ export const processPayment = onCall(
       0,
     );
     const deliveryFeeCents = data.fulfillmentType === "delivery" ? (data.deliveryFeeCents ?? 500) : 0;
-    const totalCents = subtotalCents + deliveryFeeCents;
+
+    // The tip is the customer's choice so it cannot be recomputed server-side,
+    // but it still has to be sanitised: reject non-numbers, floor at zero so a
+    // negative value can never reduce the charge, and cap it at 5x the subtotal
+    // to turn a fat-finger or a tampered payload into a failed order rather
+    // than a surprise charge.
+    const rawTip = Number(data.tipCents ?? 0);
+    const tipCents = Number.isFinite(rawTip)
+      ? Math.min(Math.max(Math.round(rawTip), 0), subtotalCents * 5)
+      : 0;
+
+    const totalCents = subtotalCents + deliveryFeeCents + tipCents;
 
     if (totalCents <= 0) {
       throw new HttpsError("invalid-argument", "Order total must be greater than zero");
@@ -369,6 +391,7 @@ export const processPayment = onCall(
       deliveryUnit: data.deliveryUnit ?? null,
       deliveryTime: data.deliveryTime ?? null,
       deliveryFeeCents,
+      tipCents,
       specialRequests: data.specialRequests ?? null,
       status: "confirmed",
       paymentMethod: "square",
@@ -405,6 +428,7 @@ export const onOrderCreated = onDocumentCreated(
     const customerPhone: string | undefined = data["customer"]?.["phone"] ?? undefined;
     const orderNumber: string = data["orderNumber"] ?? "";
     const totalCents: number = data["totalCents"] ?? 0;
+    const tipCents: number = data["tipCents"] ?? 0;
     const lines: CartLine[] = (data["items"] ?? []) as CartLine[];
     const specialRequests: string | undefined = data["specialRequests"] ?? undefined;
     const fulfillmentType: string = data["fulfillmentType"] ?? "pickup";
@@ -425,6 +449,7 @@ export const onOrderCreated = onDocumentCreated(
             orderNumber,
             lines,
             totalCents,
+            tipCents,
             pickupDate,
             pickupLocation,
             paymentMethod,
@@ -453,6 +478,7 @@ export const onOrderCreated = onDocumentCreated(
           customerPhone,
           lines,
           totalCents,
+          tipCents,
           pickupDate,
           paymentMethod,
           paymentStatus: data["paymentStatus"] ?? "unpaid",

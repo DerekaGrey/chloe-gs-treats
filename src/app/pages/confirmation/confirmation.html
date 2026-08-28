@@ -18,6 +18,12 @@
               <div class="opt-row">{{ opt.groupName }}: {{ opt.optionLabel }}</div>
             }
           }
+          @if (o.tipCents) {
+            <div class="row">
+              <span>Tip</span>
+              <span>{{ o.tipCents | cents }}</span>
+            </div>
+          }
           <div class="row total">
             <span>Total</span>
             <strong>{{ o.totalCents | cents }}</strong>

@@ -72,6 +72,10 @@ declare const Square: {
 
 const DELIVERY_FEE_CENTS = 500;
 
+// Tips are calculated on the subtotal only. The delivery fee already covers
+// the trip, so tipping on top of it would be double-charging for the same thing.
+const TIP_PERCENTS = [15, 18, 20];
+
 const WEEKDAY_SLOTS = [
   '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
 ];
@@ -115,9 +119,39 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   readonly fulfillmentType = signal<'pickup' | 'delivery'>('pickup');
   readonly addressSuggestions = signal<string[]>([]);
 
-  readonly totalCents = computed(() =>
-    this.subtotalCents() + (this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0)
+  readonly TIP_PERCENTS = TIP_PERCENTS;
+  /** Selected preset, or 'custom'. null means no tip. */
+  readonly tipChoice = signal<number | 'custom' | null>(null);
+  readonly customTipDollars = signal('');
+
+  readonly tipCents = computed(() => {
+    const choice = this.tipChoice();
+    if (choice === null) return 0;
+    if (choice === 'custom') {
+      const dollars = parseFloat(this.customTipDollars());
+      if (!isFinite(dollars) || dollars <= 0) return 0;
+      return Math.round(dollars * 100);
+    }
+    return Math.round((this.subtotalCents() * choice) / 100);
+  });
+
+  readonly deliveryFeeCents = computed(() =>
+    this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0
   );
+
+  readonly totalCents = computed(() =>
+    this.subtotalCents() + this.deliveryFeeCents() + this.tipCents()
+  );
+
+  /** Dollar preview shown under each preset button. */
+  tipPreviewCents(percent: number): number {
+    return Math.round((this.subtotalCents() * percent) / 100);
+  }
+
+  setTipChoice(choice: number | 'custom' | null): void {
+    this.tipChoice.set(choice);
+    if (choice !== 'custom') this.customTipDollars.set('');
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private squareCard: any;
@@ -348,6 +382,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         deliveryUnit: isDelivery ? v.deliveryUnit?.trim() || undefined : undefined,
         deliveryTime: isDelivery ? v.deliveryTime : undefined,
         deliveryFeeCents: isDelivery ? DELIVERY_FEE_CENTS : 0,
+        tipCents: this.tipCents(),
         specialRequests: v.specialRequests || undefined,
         wantsEmailConfirmation: !!v.wantsEmailConfirmation,
         cartLines: this.cart.lines().map(l => ({

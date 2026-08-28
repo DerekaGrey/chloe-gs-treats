@@ -16,6 +16,7 @@ export interface Order {
                                   // shown on its own line for the driver
   deliveryTime?: string;          // e.g. "11:30 AM"
   deliveryFeeCents: number;
+  tipCents: number;               // calculated on the subtotal, not the fee
   specialRequests?: string;
   status: OrderStatus;
   paymentMethod: 'pay_at_pickup' | 'square';
