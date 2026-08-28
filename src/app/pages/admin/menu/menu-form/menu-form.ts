@@ -232,6 +232,7 @@ export class MenuForm implements OnInit {
   async save(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.error.set('Please fill in the highlighted fields before saving.');
       return;
     }
 
@@ -284,9 +285,15 @@ export class MenuForm implements OnInit {
 
       await this.adminMenuService.save(data, this.editId ?? undefined);
       await this.router.navigate(['/admin/menu']);
-    } catch {
+    } catch (err) {
+      console.error('[menu-form] Save failed:', err);
       this.uploadProgress.set(null);
-      this.error.set('Failed to save. Please try again.');
+      const e = err as { code?: string; message?: string };
+      this.error.set(
+        e?.code === 'permission-denied'
+          ? 'You do not have permission to save menu items. Please sign out and back in.'
+          : `Failed to save: ${e?.message ?? 'unknown error'}`,
+      );
     } finally {
       this.saving.set(false);
     }
