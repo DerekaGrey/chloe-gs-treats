@@ -143,8 +143,17 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0
   );
 
+  /**
+   * Tax on the food only. processPayment recomputes this from Firestore and
+   * rejects the charge if the two disagree, so this must use the same base and
+   * rounding: subtotal only, excluding the delivery fee and the tip.
+   */
+  readonly taxCents = computed(() =>
+    Math.round((this.subtotalCents() * this.cfg().taxRatePercent) / 100)
+  );
+
   readonly totalCents = computed(() =>
-    this.subtotalCents() + this.deliveryFeeCents() + this.tipCents()
+    this.subtotalCents() + this.taxCents() + this.deliveryFeeCents() + this.tipCents()
   );
 
   /** Dollar preview shown under each preset button. */
@@ -421,6 +430,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         deliveryUnit: isDelivery ? v.deliveryUnit?.trim() || undefined : undefined,
         deliveryTime: isDelivery ? v.deliveryTime : undefined,
         deliveryFeeCents: isDelivery ? DELIVERY_FEE_CENTS : 0,
+        taxCents: this.taxCents(),
         tipCents: this.tipCents(),
         specialRequests: v.specialRequests || undefined,
         wantsEmailConfirmation: !!v.wantsEmailConfirmation,

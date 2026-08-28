@@ -28,6 +28,8 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     deliveryUnit: data['deliveryUnit'],
     deliveryTime: data['deliveryTime'],
     deliveryFeeCents: data['deliveryFeeCents'] ?? 0,
+    taxCents: data['taxCents'] ?? 0,
+    taxRatePercent: data['taxRatePercent'] ?? 0,
     tipCents: data['tipCents'] ?? 0,
     specialRequests: data['specialRequests'],
     status: data['status'],
@@ -64,6 +66,8 @@ export class OrderService {
     deliveryUnit?: string;
     deliveryTime?: string;
     deliveryFeeCents: number;
+    taxCents: number;
+    taxRatePercent: number;
     tipCents: number;
     specialRequests?: string;
     wantsEmailConfirmation: boolean;
@@ -72,7 +76,8 @@ export class OrderService {
     const lines = this.cart.lines();
     const items = this.toLineItems(lines);
     const subtotalCents = items.reduce((s, i) => s + i.lineTotalCents, 0);
-    const totalCents = subtotalCents + input.deliveryFeeCents + input.tipCents;
+    const totalCents =
+      subtotalCents + input.taxCents + input.deliveryFeeCents + input.tipCents;
     const orderNumber = this.nextOrderNumber();
 
     await addDoc(collection(db, 'orders'), {
@@ -88,6 +93,8 @@ export class OrderService {
       deliveryUnit: input.deliveryUnit ?? null,
       deliveryTime: input.deliveryTime ?? null,
       deliveryFeeCents: input.deliveryFeeCents,
+      taxCents: input.taxCents,
+      taxRatePercent: input.taxRatePercent,
       tipCents: input.tipCents,
       specialRequests: input.specialRequests ?? null,
       status: 'pending',
@@ -111,6 +118,8 @@ export class OrderService {
       deliveryUnit: input.deliveryUnit,
       deliveryTime: input.deliveryTime,
       deliveryFeeCents: input.deliveryFeeCents,
+      taxCents: input.taxCents,
+      taxRatePercent: input.taxRatePercent,
       tipCents: input.tipCents,
       specialRequests: input.specialRequests,
       status: 'pending',

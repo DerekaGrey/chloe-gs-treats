@@ -185,6 +185,12 @@
           <span>Subtotal</span>
           <span>{{ subtotalCents() | cents }}</span>
         </div>
+        @if (taxCents() > 0) {
+          <div class="sum-delivery">
+            <span>Sales tax ({{ cfg().taxRatePercent }}%)</span>
+            <span>{{ taxCents() | cents }}</span>
+          </div>
+        }
         @if (fulfillmentType() === 'delivery') {
           <div class="sum-delivery">
             <span>Delivery</span>

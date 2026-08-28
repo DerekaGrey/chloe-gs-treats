@@ -52,6 +52,7 @@ function orderEmailHtml(opts: {
   orderNumber: string;
   lines: CartLine[];
   totalCents: number;
+  taxCents?: number;
   tipCents?: number;
   pickupDate: Date;
   pickupLocation: string;
@@ -106,6 +107,10 @@ function orderEmailHtml(opts: {
 
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.taxCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Sales tax</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.taxCents)}</td>
+            </tr>` : ""}
             ${opts.tipCents ? `<tr>
               <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Tip</td>
               <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.tipCents)}</td>
@@ -158,6 +163,7 @@ function ownerEmailHtml(opts: {
   customerPhone?: string;
   lines: CartLine[];
   totalCents: number;
+  taxCents?: number;
   tipCents?: number;
   pickupDate: Date;
   paymentMethod: string;
@@ -240,6 +246,10 @@ function ownerEmailHtml(opts: {
           <p style="margin:0 0 8px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Items</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.taxCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Sales tax</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.taxCents)}</td>
+            </tr>` : ""}
             ${opts.tipCents ? `<tr>
               <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Tip</td>
               <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.tipCents)}</td>
@@ -302,6 +312,7 @@ interface PaymentRequest {
   deliveryUnit?: string;
   deliveryTime?: string;
   deliveryFeeCents: number;
+  taxCents?: number;
   tipCents?: number;
   specialRequests?: string;
   wantsEmailConfirmation: boolean;
@@ -331,6 +342,26 @@ export const processPayment = onCall(
     );
     const deliveryFeeCents = data.fulfillmentType === "delivery" ? (data.deliveryFeeCents ?? 500) : 0;
 
+    const db = admin.firestore();
+
+    // The tax rate comes from Firestore, never from the client. Tax applies to
+    // the food only: not the delivery fee, and never the tip.
+    const configSnap = await db.doc("config/global").get();
+    const rawRate = Number(configSnap.data()?.["taxRatePercent"] ?? 0);
+    const taxRatePercent = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0;
+    const taxCents = Math.round((subtotalCents * taxRatePercent) / 100);
+
+    // The browser already showed the customer a total. If its tax figure
+    // disagrees with ours, its config is stale (the rate changed mid-session),
+    // so fail loudly rather than charge an amount they never agreed to.
+    const clientTaxCents = Math.round(Number(data.taxCents ?? 0));
+    if (clientTaxCents !== taxCents) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Prices have changed. Please refresh the page and try again.",
+      );
+    }
+
     // The tip is the customer's choice so it cannot be recomputed server-side,
     // but it still has to be sanitised: reject non-numbers and floor at zero so
     // a negative value can never reduce the charge.
@@ -345,7 +376,7 @@ export const processPayment = onCall(
       ? Math.min(Math.max(Math.round(rawTip), 0), MAX_TIP_CENTS)
       : 0;
 
-    const totalCents = subtotalCents + deliveryFeeCents + tipCents;
+    const totalCents = subtotalCents + taxCents + deliveryFeeCents + tipCents;
 
     if (totalCents <= 0) {
       throw new HttpsError("invalid-argument", "Order total must be greater than zero");
@@ -379,7 +410,6 @@ export const processPayment = onCall(
     const squarePaymentId = squareData.payment?.id ?? "";
 
     // Create the Firestore order now that payment succeeded
-    const db = admin.firestore();
     const orderNumber = `CG-${Math.floor(1000 + Math.random() * 9000)}`;
 
     await db.collection("orders").add({
@@ -388,6 +418,8 @@ export const processPayment = onCall(
       isGuest: true,
       items: data.cartLines,
       subtotalCents,
+      taxCents,
+      taxRatePercent,
       totalCents,
       pickupDate: admin.firestore.Timestamp.fromDate(new Date(data.pickupDate)),
       fulfillmentType: data.fulfillmentType ?? "pickup",
@@ -432,6 +464,7 @@ export const onOrderCreated = onDocumentCreated(
     const customerPhone: string | undefined = data["customer"]?.["phone"] ?? undefined;
     const orderNumber: string = data["orderNumber"] ?? "";
     const totalCents: number = data["totalCents"] ?? 0;
+    const taxCents: number = data["taxCents"] ?? 0;
     const tipCents: number = data["tipCents"] ?? 0;
     const lines: CartLine[] = (data["items"] ?? []) as CartLine[];
     const specialRequests: string | undefined = data["specialRequests"] ?? undefined;
@@ -453,6 +486,7 @@ export const onOrderCreated = onDocumentCreated(
             orderNumber,
             lines,
             totalCents,
+            taxCents,
             tipCents,
             pickupDate,
             pickupLocation,
@@ -482,6 +516,7 @@ export const onOrderCreated = onDocumentCreated(
           customerPhone,
           lines,
           totalCents,
+          taxCents,
           tipCents,
           pickupDate,
           paymentMethod,

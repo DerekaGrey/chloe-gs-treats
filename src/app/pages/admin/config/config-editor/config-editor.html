@@ -43,6 +43,20 @@
             <p class="field-error">Must be between 1 and 30.</p>
           }
         </div>
+
+        <div class="field field-sm">
+          <label for="taxRate">Sales tax rate (%)</label>
+          <input id="taxRate" type="number" formControlName="taxRatePercent" min="0" max="100" step="0.001" />
+          <p class="field-hint">
+            Applied to the food subtotal only, not the delivery fee or tip. Leave at 0
+            to charge no tax. Confirm the correct rate with the Missouri Department of
+            Revenue or an accountant before setting it: Missouri taxes qualifying food
+            at a reduced rate, and Columbia adds district taxes on top.
+          </p>
+          @if (form.get('taxRatePercent')?.invalid && form.get('taxRatePercent')?.touched) {
+            <p class="field-error">Must be between 0 and 100.</p>
+          }
+        </div>
       </section>
 
       <!-- ── Blackout dates ─────────────────────────── -->

@@ -26,6 +26,8 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     fulfillmentType: data['fulfillmentType'] ?? 'pickup',
     deliveryAddress: data['deliveryAddress'],
     deliveryUnit: data['deliveryUnit'],
+    taxCents: data['taxCents'] ?? 0,
+    taxRatePercent: data['taxRatePercent'] ?? 0,
     tipCents: data['tipCents'] ?? 0,
     deliveryTime: data['deliveryTime'],
     deliveryFeeCents: data['deliveryFeeCents'] ?? 0,

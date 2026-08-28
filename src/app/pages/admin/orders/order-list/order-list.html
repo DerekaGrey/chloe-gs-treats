@@ -101,6 +101,12 @@
                       <span class="line-price">{{ item.lineTotalCents | cents }}</span>
                     </div>
                   }
+                  @if (order.taxCents) {
+                    <div class="order-tip">
+                      <span>Sales tax ({{ order.taxRatePercent }}%)</span>
+                      <span>{{ order.taxCents | cents }}</span>
+                    </div>
+                  }
                   @if (order.tipCents) {
                     <div class="order-tip">
                       <span>Tip</span>
