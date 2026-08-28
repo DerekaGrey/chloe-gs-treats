@@ -23,19 +23,42 @@ import { OrderService } from '../../services/order.service';
 import { CentsPipe } from '../../shared/cents.pipe';
 import { environment } from '../../../environments/environment';
 
-// Minimal types for the Google Places Autocomplete widget
+/**
+ * Minimal types for the Google Places Autocomplete Data API.
+ *
+ * The legacy `google.maps.places.Autocomplete` widget is unavailable to Cloud
+ * projects that enabled Places after 2025-03-01, so we call the newer
+ * AutocompleteSuggestion API and render our own dropdown instead.
+ */
+interface PlacePrediction {
+  text: { text: string };
+  mainText?: { text: string };
+  secondaryText?: { text: string };
+}
+
+interface PlacesLib {
+  AutocompleteSessionToken: new () => object;
+  AutocompleteSuggestion: {
+    fetchAutocompleteSuggestions(request: object): Promise<{
+      suggestions: { placePrediction: PlacePrediction | null }[];
+    }>;
+  };
+}
+
 declare const google: {
   maps: {
-    places: {
-      Autocomplete: new (input: HTMLInputElement, opts?: object) => {
-        addListener(event: string, fn: () => void): void;
-        getPlace(): { formatted_address?: string };
-      };
-    };
-    LatLng: new (lat: number, lng: number) => object;
-    LatLngBounds: new (sw: object, ne: object) => object;
+    places?: Partial<PlacesLib>;
+    importLibrary?(name: string): Promise<unknown>;
   };
 };
+
+// Bias suggestions toward Columbia, MO (roughly a 30km radius around downtown)
+const COLUMBIA_CENTER = { lat: 38.9517, lng: -92.3341 };
+const COLUMBIA_RADIUS_M = 30_000;
+
+// Cost guardrails: don't call the API on every keystroke
+const ADDRESS_MIN_CHARS = 4;
+const ADDRESS_DEBOUNCE_MS = 350;
 
 declare const Square: {
   payments(applicationId: string, locationId: string): Promise<{
@@ -90,6 +113,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   readonly submitting = signal(false);
   readonly cardError = signal('');
   readonly fulfillmentType = signal<'pickup' | 'delivery'>('pickup');
+  readonly addressSuggestions = signal<string[]>([]);
 
   readonly totalCents = computed(() =>
     this.subtotalCents() + (this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0)
@@ -97,7 +121,9 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private squareCard: any;
-  private placesScriptLoaded = false;
+  private placesLib?: Promise<PlacesLib>;
+  private addressSessionToken?: object;
+  private addressDebounceId?: ReturnType<typeof setTimeout>;
 
   readonly form = this.fb.group({
     name: ['', [Validators.required]],
@@ -111,54 +137,102 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   });
 
   constructor() {
+    // Warm the Places library as soon as delivery is picked so the first
+    // keystroke doesn't wait on a script download.
     effect(() => {
       if (this.fulfillmentType() === 'delivery') {
-        this.loadPlacesScript().then(() => {
-          // Wait one tick for Angular to render the delivery address input
-          setTimeout(() => this.initPlacesAutocomplete(), 0);
-        });
+        void this.loadPlaces().catch(err =>
+          console.error('[checkout] Places library failed to load:', err),
+        );
       }
     });
   }
 
-  private loadPlacesScript(): Promise<void> {
-    if (this.placesScriptLoaded) return Promise.resolve();
-    const existing = document.getElementById('google-places-script');
-    if (existing) { this.placesScriptLoaded = true; return Promise.resolve(); }
-    return new Promise(resolve => {
+  private loadPlaces(): Promise<PlacesLib> {
+    this.placesLib ??= new Promise<void>((resolve, reject) => {
+      const existing = document.getElementById('google-places-script');
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject(new Error('Places script failed')));
+        return;
+      }
       const script = document.createElement('script');
       script.id = 'google-places-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${environment.googlePlacesApiKey}&libraries=places`;
-      script.onload = () => { this.placesScriptLoaded = true; resolve(); };
+      script.async = true;
+      script.src =
+        `https://maps.googleapis.com/maps/api/js?key=${environment.googlePlacesApiKey}` +
+        `&v=weekly&libraries=places`;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Places script failed'));
       document.head.appendChild(script);
+    }).then(() => {
+      // `libraries=places` populates google.maps.places at load time.
+      // importLibrary only exists under Google's inline bootstrap loader,
+      // so it is a fallback rather than the primary path.
+      if (google.maps.places?.AutocompleteSuggestion) {
+        return google.maps.places as PlacesLib;
+      }
+      if (typeof google.maps.importLibrary === 'function') {
+        return google.maps.importLibrary('places') as Promise<PlacesLib>;
+      }
+      throw new Error('Places library unavailable: enable Places API (New) for this key');
     });
+
+    // Don't cache a failure, otherwise the field stays broken for the rest of
+    // the session even once the problem clears.
+    this.placesLib.catch(() => { this.placesLib = undefined; });
+
+    return this.placesLib;
   }
 
-  private initPlacesAutocomplete(): void {
-    const input = document.getElementById('deliveryAddress') as HTMLInputElement | null;
-    if (!input || typeof google === 'undefined') return;
-
-    const columbiaCenter = new google.maps.LatLng(38.9517, -92.3341);
-    const bounds = new google.maps.LatLngBounds(
-      new google.maps.LatLng(38.88, -92.45),
-      new google.maps.LatLng(39.02, -92.20),
+  onAddressInput(value: string): void {
+    clearTimeout(this.addressDebounceId);
+    if (value.trim().length < ADDRESS_MIN_CHARS) {
+      this.addressSuggestions.set([]);
+      return;
+    }
+    this.addressDebounceId = setTimeout(
+      () => void this.fetchAddressSuggestions(value.trim()),
+      ADDRESS_DEBOUNCE_MS,
     );
+  }
 
-    const autocomplete = new google.maps.places.Autocomplete(input, {
-      bounds,
-      strictBounds: false,
-      componentRestrictions: { country: 'us' },
-      types: ['address'],
-    });
+  private async fetchAddressSuggestions(input: string): Promise<void> {
+    try {
+      const places = await this.loadPlaces();
+      this.addressSessionToken ??= new places.AutocompleteSessionToken();
 
-    void columbiaCenter;
+      const { suggestions } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input,
+        sessionToken: this.addressSessionToken,
+        includedRegionCodes: ['us'],
+        locationBias: { center: COLUMBIA_CENTER, radius: COLUMBIA_RADIUS_M },
+      });
 
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.formatted_address) {
-        this.form.controls.deliveryAddress.setValue(place.formatted_address);
-      }
-    });
+      this.addressSuggestions.set(
+        suggestions
+          .map(s => s.placePrediction?.text.text)
+          .filter((t): t is string => !!t)
+          .slice(0, 5),
+      );
+    } catch (err) {
+      // A failed lookup should never block checkout: the field still accepts
+      // free text, we just stop showing suggestions.
+      console.error('[checkout] Address lookup failed:', err);
+      this.addressSuggestions.set([]);
+    }
+  }
+
+  selectAddress(address: string): void {
+    this.form.controls.deliveryAddress.setValue(address);
+    this.addressSuggestions.set([]);
+    // A session ends at selection; the next lookup starts a fresh one.
+    this.addressSessionToken = undefined;
+  }
+
+  hideAddressSuggestions(): void {
+    // Delay so a click on a suggestion lands before the list is removed.
+    setTimeout(() => this.addressSuggestions.set([]), 150);
   }
 
   get deliveryTimeSlots(): string[] {
@@ -172,6 +246,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     this.fulfillmentType.set(type);
     this.form.controls.deliveryTime.setValue('');
     this.form.controls.deliveryAddress.setValue('');
+    this.addressSuggestions.set([]);
   }
 
   onDateChange(): void {
@@ -207,6 +282,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.addressDebounceId);
     this.squareCard?.destroy();
   }
 

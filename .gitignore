@@ -46,6 +46,11 @@ service-account*.json
 functions/node_modules/
 functions/lib/
 
+# Firebase CLI local state and logs
+.firebase/
+firebase-debug*.log
+firestore-debug*.log
+
 # System files
 .DS_Store
 Thumbs.db

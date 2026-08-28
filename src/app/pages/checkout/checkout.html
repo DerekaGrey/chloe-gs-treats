@@ -106,13 +106,26 @@
 
           <div class="field">
             <label for="deliveryAddress">Delivery address *</label>
-            <input
-              id="deliveryAddress"
-              type="text"
-              formControlName="deliveryAddress"
-              placeholder="Street address, Columbia, MO"
-              autocomplete="street-address"
-            />
+            <div class="address-autocomplete">
+              <input
+                id="deliveryAddress"
+                type="text"
+                formControlName="deliveryAddress"
+                placeholder="Start typing your street address"
+                autocomplete="off"
+                (input)="onAddressInput($any($event.target).value)"
+                (blur)="hideAddressSuggestions()"
+              />
+              @if (addressSuggestions().length) {
+                <ul class="address-suggestions">
+                  @for (s of addressSuggestions(); track s) {
+                    <li>
+                      <button type="button" (mousedown)="selectAddress(s)">{{ s }}</button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
             @if (form.controls.deliveryAddress.touched && !form.controls.deliveryAddress.value?.trim()) {
               <p class="field-error">Please enter your delivery address.</p>
             }
