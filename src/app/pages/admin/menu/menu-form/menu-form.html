@@ -158,8 +158,15 @@
             @if (previewUrl || currentPhotoUrl) {
               <button type="button" class="btn-remove-photo" (click)="removePhoto()">Remove</button>
             }
+            @if (processing()) {
+              <span class="photo-status">Preparing image...</span>
+            }
           </div>
         </div>
+
+        @if (photoError()) {
+          <p class="field-error">{{ photoError() }}</p>
+        }
 
         @if (uploadProgress() !== null) {
           <div class="upload-progress-wrap">
@@ -168,7 +175,10 @@
           </div>
         }
 
-        <p class="section-hint">JPG, PNG, or WebP · Max 5 MB. Photo is uploaded when you save.</p>
+        <p class="section-hint">
+          JPG, PNG, HEIC, or WebP. Large photos are resized automatically, so
+          straight from your phone is fine. Uploaded when you save.
+        </p>
       </section>
 
       <!-- ── Ingredients & allergens ────────────────── -->

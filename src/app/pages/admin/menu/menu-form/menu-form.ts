@@ -12,6 +12,16 @@ import { MenuService } from '../../../../services/menu.service';
 import { AdminMenuService } from '../../../../services/admin-menu.service';
 import { MenuCategory, MenuItem } from '../../../../models';
 
+// Guard against something absurd being handed to the canvas. Anything under
+// this is downscaled rather than rejected, so the limit is deliberately loose.
+const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
+const MAX_EDGE_PX = 1600;
+const JPEG_QUALITY = 0.85;
+
+function formatMb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const CATEGORIES: { value: MenuCategory; label: string }[] = [
   { value: 'cookies', label: 'Cookies' },
   { value: 'scones', label: 'Scones' },
@@ -39,6 +49,10 @@ export class MenuForm implements OnInit {
   readonly saving = signal(false);
   readonly error = signal('');
   readonly uploadProgress = signal<number | null>(null);
+  readonly processing = signal(false);
+  // Kept apart from `error` so a photo problem shows next to the photo picker
+  // rather than down beside the Save button.
+  readonly photoError = signal('');
 
   editId: string | null = null;
   form!: FormGroup;
@@ -141,28 +155,83 @@ export class MenuForm implements OnInit {
 
   // ── Photo actions ─────────────────────────────────────────────────────────
 
-  onFileSelected(event: Event): void {
+  async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      this.error.set('Please select an image file.');
+      this.photoError.set('Please select an image file.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      this.error.set('Image must be under 5 MB.');
+    if (file.size > MAX_SOURCE_BYTES) {
+      this.photoError.set(
+        `That image is ${formatMb(file.size)}, which is too large to process. ` +
+        'Please pick a smaller one.',
+      );
       return;
     }
 
-    this.error.set('');
-    this.selectedFile = file;
-    // Revoke previous blob URL to avoid memory leaks
-    if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-    this.previewUrl = URL.createObjectURL(file);
+    this.photoError.set('');
+    this.processing.set(true);
+    try {
+      const prepared = await this.downscale(file);
+      this.selectedFile = prepared;
+      // Revoke previous blob URL to avoid memory leaks
+      if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = URL.createObjectURL(prepared);
+    } catch (err) {
+      console.error('[menu-form] Image processing failed:', err);
+      this.photoError.set(
+        'Could not read that image. Try exporting it as a JPEG or PNG and uploading again.',
+      );
+    } finally {
+      this.processing.set(false);
+    }
+  }
+
+  /**
+   * Shrink and re-encode in the browser before upload.
+   *
+   * Phone photos are many megapixels and land here as JPEG, since macOS and iOS
+   * transcode HEIC on the way into a file input. That transcode inflates the
+   * file badly: a 3 MB HEIC commonly becomes 8 MB or more as JPEG, which is why
+   * a photo that looks small in Finder used to be rejected.
+   *
+   * A menu thumbnail never needs more than ~1600px, so this typically turns a
+   * multi-megabyte original into a few hundred KB, which also keeps the
+   * storefront fast for customers on phones.
+   */
+  private async downscale(file: File): Promise<File> {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const longestEdge = Math.max(bitmap.width, bitmap.height);
+      const scale = Math.min(1, MAX_EDGE_PX / longestEdge);
+      const width = Math.round(bitmap.width * scale);
+      const height = Math.round(bitmap.height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas 2D context unavailable');
+      ctx.drawImage(bitmap, 0, 0, width, height);
+
+      const blob = await new Promise<Blob | null>(resolve =>
+        canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
+      );
+      if (!blob) throw new Error('Image encoding produced no data');
+
+      const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      return new File([blob], name, { type: 'image/jpeg' });
+    } finally {
+      bitmap.close();
+    }
   }
 
   removePhoto(): void {
+    this.photoError.set('');
     if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
     this.previewUrl = null;
     this.selectedFile = null;
