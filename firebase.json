@@ -1,4 +1,10 @@
 {
+  "hosting": {
+    "public": "dist/chloe-gs-treats/browser",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "predeploy": ["npm run build"]
+  },
   "storage": {
     "rules": "storage.rules"
   },

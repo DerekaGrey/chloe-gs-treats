@@ -81,7 +81,7 @@ function orderEmailHtml(opts: {
   });
 
   const paymentNote = opts.paymentMethod === "square"
-    ? `<p style="margin:0;color:#8a6f5e;font-size:13px">Nothing to pay at pickup — your card has already been charged.</p>`
+    ? `<p style="margin:0;color:#8a6f5e;font-size:13px">Nothing to pay at pickup. Your card has already been charged.</p>`
     : `<p style="margin:0;color:#33291f;font-size:14px"><strong>Payment:</strong> Please pay via Venmo or cash when you pick up your order.</p>`;
 
   return `<div style="margin:0;padding:0;background-color:#F4DEE1">
@@ -193,7 +193,7 @@ function ownerEmailHtml(opts: {
         <!-- Header -->
         <tr><td style="background-color:#C24038;padding:24px 32px">
           <p style="margin:0;font-family:Georgia,serif;font-size:18px;color:#ffffff">Chloe G's Homemade Treats</p>
-          <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#ffffff">New Order — ${esc(opts.orderNumber)}${isDelivery ? " 🚗" : ""}</p>
+          <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#ffffff">New Order: ${esc(opts.orderNumber)}${isDelivery ? " 🚗" : ""}</p>
         </td></tr>
 
         <!-- Customer info -->
@@ -334,7 +334,7 @@ export const processPayment = onCall(
         amount_money: { amount: totalCents, currency: "USD" },
         location_id: LOCATION_ID,
         buyer_email_address: data.customer.email,
-        note: `Chloe G's Treats — ${data.customer.name}`,
+        note: `Chloe G's Treats, ${data.customer.name}`,
       }),
     });
 
@@ -437,7 +437,7 @@ export const onOrderCreated = onDocumentCreated(
       await sendEmail({
         apiKey,
         to: ownerEmail,
-        subject: `New order ${orderNumber} — ${customerName}${fulfillmentType === "delivery" ? " 🚗 DELIVERY" : ""}`,
+        subject: `New order ${orderNumber}: ${customerName}${fulfillmentType === "delivery" ? " 🚗 DELIVERY" : ""}`,
         html: ownerEmailHtml({
           orderNumber,
           customerName,
