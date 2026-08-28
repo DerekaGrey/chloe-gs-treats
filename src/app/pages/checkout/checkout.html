@@ -43,7 +43,7 @@
             >
               <span class="fulfillment-icon">🧺</span>
               <span class="fulfillment-title">Pickup</span>
-              <span class="fulfillment-desc">Free — pick up at our location</span>
+              <span class="fulfillment-desc">Free, pick up at our location</span>
             </button>
             <button
               type="button"
@@ -82,18 +82,22 @@
         <!-- Delivery-only fields -->
         @if (fulfillmentType() === 'delivery') {
           <div class="field">
-            <label for="deliveryTime">Delivery time *</label>
-            <select id="deliveryTime" formControlName="deliveryTime">
-              <option value="">Select a time...</option>
+            <label>Delivery time *</label>
+            <div class="time-grid">
               @for (slot of deliveryTimeSlots; track slot) {
-                <option [value]="slot">{{ slot }}</option>
+                <button
+                  type="button"
+                  class="time-slot"
+                  [class.selected]="form.controls.deliveryTime.value === slot"
+                  (click)="form.controls.deliveryTime.setValue(slot)"
+                >{{ slot }}</button>
               }
-            </select>
+            </div>
             @if (form.controls.deliveryTime.touched && !form.controls.deliveryTime.value) {
               <p class="field-error">Please select a delivery time.</p>
             }
             <p class="hint">
-              Weekday deliveries: 11:00 AM – 1:30 PM. Weekend deliveries: flexible.
+              Weekday deliveries: 11:00 AM to 1:30 PM. Weekend deliveries: flexible.
               Need a different time? Email us at
               <a href="mailto:chloegshomemadetreats@gmail.com">chloegshomemadetreats@gmail.com</a>
               and we'll do our best to accommodate.

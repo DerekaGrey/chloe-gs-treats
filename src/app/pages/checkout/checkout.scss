@@ -31,6 +31,36 @@
 
 .field-label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.1rem; }
 
+.time-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.time-slot {
+  padding: 0.45rem 0.85rem;
+  border: 1.5px solid var(--color-cream-dark);
+  border-radius: 999px;
+  background: var(--color-cream);
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: var(--color-rose);
+    background: #fdf2f3;
+  }
+
+  &.selected {
+    border-color: var(--color-red);
+    background: var(--color-red);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
 .sum-subtotal,
 .sum-delivery {
   display: flex;
