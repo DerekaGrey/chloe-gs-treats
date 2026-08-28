@@ -332,13 +332,17 @@ export const processPayment = onCall(
     const deliveryFeeCents = data.fulfillmentType === "delivery" ? (data.deliveryFeeCents ?? 500) : 0;
 
     // The tip is the customer's choice so it cannot be recomputed server-side,
-    // but it still has to be sanitised: reject non-numbers, floor at zero so a
-    // negative value can never reduce the charge, and cap it at 5x the subtotal
-    // to turn a fat-finger or a tampered payload into a failed order rather
-    // than a surprise charge.
+    // but it still has to be sanitised: reject non-numbers and floor at zero so
+    // a negative value can never reduce the charge.
+    //
+    // The ceiling is a flat amount rather than a multiple of the subtotal. A
+    // ratio would clamp a generous tip on a small order, and since the client
+    // shows the total before this runs, clamping would charge an amount the
+    // customer never agreed to. This value must match MAX_TIP_CENTS in checkout.ts.
+    const MAX_TIP_CENTS = 100_000;
     const rawTip = Number(data.tipCents ?? 0);
     const tipCents = Number.isFinite(rawTip)
-      ? Math.min(Math.max(Math.round(rawTip), 0), subtotalCents * 5)
+      ? Math.min(Math.max(Math.round(rawTip), 0), MAX_TIP_CENTS)
       : 0;
 
     const totalCents = subtotalCents + deliveryFeeCents + tipCents;

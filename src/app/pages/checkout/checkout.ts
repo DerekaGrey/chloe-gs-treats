@@ -76,6 +76,10 @@ const DELIVERY_FEE_CENTS = 500;
 // the trip, so tipping on top of it would be double-charging for the same thing.
 const TIP_PERCENTS = [15, 18, 20];
 
+// Sanity ceiling on a custom tip. Must match the cap in processPayment,
+// otherwise the total shown here would not be the amount actually charged.
+const MAX_TIP_CENTS = 100_000;
+
 const WEEKDAY_SLOTS = [
   '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
 ];
@@ -130,7 +134,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     if (choice === 'custom') {
       const dollars = parseFloat(this.customTipDollars());
       if (!isFinite(dollars) || dollars <= 0) return 0;
-      return Math.round(dollars * 100);
+      return Math.min(Math.round(dollars * 100), MAX_TIP_CENTS);
     }
     return Math.round((this.subtotalCents() * choice) / 100);
   });
@@ -330,9 +334,37 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
+  /**
+   * Field errors render next to their field, but the Pay button is at the
+   * bottom of a long form, so an error on an early field lands off-screen and
+   * the button looks broken. Say something at the button and jump to the
+   * offending field.
+   */
+  private reportInvalidForm(): void {
+    this.form.markAllAsTouched();
+
+    const firstInvalid = Object.keys(this.form.controls).find(
+      key => this.form.get(key)?.invalid,
+    );
+
+    this.cardError.set(
+      firstInvalid === 'pickupDate'
+        ? 'Please choose an available date above before paying.'
+        : 'Please fill in the highlighted fields above before paying.',
+    );
+
+    if (firstInvalid) {
+      const el = document.getElementById(firstInvalid);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    }
+  }
+
   async submit(): Promise<void> {
-    if (this.form.invalid || this.submitting()) {
-      this.form.markAllAsTouched();
+    if (this.submitting()) return;
+
+    if (this.form.invalid) {
+      this.reportInvalidForm();
       return;
     }
 
@@ -341,12 +373,19 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
 
     if (isDelivery && !v.deliveryTime) {
       this.form.controls.deliveryTime.markAsTouched();
-      this.cardError.set('Please select a delivery time.');
+      this.cardError.set('Please select a delivery time above.');
+      document.querySelector('.time-grid')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
       return;
     }
     if (isDelivery && !v.deliveryAddress?.trim()) {
       this.form.controls.deliveryAddress.markAsTouched();
-      this.cardError.set('Please enter your delivery address.');
+      this.cardError.set('Please enter your delivery address above.');
+      const el = document.getElementById('deliveryAddress');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
       return;
     }
 
