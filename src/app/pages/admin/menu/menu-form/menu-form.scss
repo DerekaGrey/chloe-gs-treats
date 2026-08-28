@@ -46,6 +46,50 @@
   color: var(--color-ink-soft);
 }
 
+.crop-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 320px;
+}
+
+.crop-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--color-blush);
+  cursor: grab;
+  // Without this, a touch drag scrolls the page instead of panning the image.
+  touch-action: none;
+  user-select: none;
+
+  &:active { cursor: grabbing; }
+
+  img {
+    position: absolute;
+    max-width: none; // the width binding is authoritative, do not let CSS shrink it
+    pointer-events: none;
+  }
+}
+
+.crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+
+  input { flex: 1; }
+}
+
+.crop-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+}
+
 .field {
   display: flex;
   flex-direction: column;

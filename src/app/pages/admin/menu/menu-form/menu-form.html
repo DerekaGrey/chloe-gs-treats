@@ -139,12 +139,46 @@
         <h2 class="section-title">Photo</h2>
 
         <div class="photo-area">
-          @if (previewUrl || currentPhotoUrl) {
+          @if (previewUrl) {
+            <div class="crop-editor">
+              <div
+                class="crop-frame"
+                #cropFrame
+                (pointerdown)="onPanStart($event)"
+                (pointermove)="onPanMove($event)"
+                (pointerup)="onPanEnd($event)"
+                (pointercancel)="onPanEnd($event)"
+              >
+                <img
+                  [src]="previewUrl"
+                  alt="Drag to reposition"
+                  draggable="false"
+                  (load)="onCropImageLoad(cropFrame)"
+                  [style.width.px]="scaledW()"
+                  [style.height.px]="scaledH()"
+                  [style.left.px]="offsetX()"
+                  [style.top.px]="offsetY()"
+                />
+              </div>
+              <label class="crop-zoom">
+                <span>Zoom</span>
+                <input
+                  type="range"
+                  min="1"
+                  [max]="MAX_ZOOM"
+                  step="0.01"
+                  [value]="zoom()"
+                  (input)="setZoom($any($event.target).value)"
+                />
+              </label>
+              <p class="crop-hint">
+                Drag the photo to reposition it. This square is exactly what
+                customers will see.
+              </p>
+            </div>
+          } @else if (currentPhotoUrl) {
             <div class="photo-preview">
-              <img [src]="previewUrl ?? currentPhotoUrl" alt="Item photo preview" />
-              @if (previewUrl) {
-                <span class="photo-badge">New, not saved yet</span>
-              }
+              <img [src]="currentPhotoUrl" alt="Item photo" />
             </div>
           } @else {
             <div class="photo-placeholder">No photo</div>

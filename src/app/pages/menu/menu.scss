@@ -27,7 +27,9 @@
 }
 
 .thumb {
-  aspect-ratio: 4 / 3;
+  // Square to match the detail page and the admin crop frame, so what gets
+  // cropped on upload is exactly what shows everywhere.
+  aspect-ratio: 1;
   background: var(--color-blush);
   overflow: hidden;
 }

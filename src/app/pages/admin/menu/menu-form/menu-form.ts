@@ -15,8 +15,12 @@ import { MenuCategory, MenuItem } from '../../../../models';
 // Guard against something absurd being handed to the canvas. Anything under
 // this is downscaled rather than rejected, so the limit is deliberately loose.
 const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
-const MAX_EDGE_PX = 1600;
 const JPEG_QUALITY = 0.85;
+/** Stored crop is square, matching how the menu grid and detail page display it. */
+const OUTPUT_PX = 1200;
+const MAX_ZOOM = 3;
+/** Only used if the frame is measured before layout settles. */
+const FRAME_FALLBACK_PX = 320;
 
 function formatMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -61,6 +65,16 @@ export class MenuForm implements OnInit {
   selectedFile: File | null = null;
   previewUrl: string | null = null;   // local blob URL shown immediately on selection
   currentPhotoUrl: string | null = null; // existing Storage URL from Firestore
+
+  // Crop framing. The decoded original is retained so every adjustment
+  // re-renders from full quality instead of compounding on the last render.
+  readonly MAX_ZOOM = MAX_ZOOM;
+  cropBitmap: ImageBitmap | null = null;
+  readonly zoom = signal(1);
+  readonly offsetX = signal(0);
+  readonly offsetY = signal(0);
+  readonly frameSize = signal(FRAME_FALLBACK_PX);
+  private panFrom: { x: number; y: number } | null = null;
 
   ngOnInit(): void {
     this.form = this.fb.group({
@@ -175,11 +189,18 @@ export class MenuForm implements OnInit {
     this.photoError.set('');
     this.processing.set(true);
     try {
-      const prepared = await this.downscale(file);
-      this.selectedFile = prepared;
-      // Revoke previous blob URL to avoid memory leaks
+      // Keep the decoded original around: the crop is re-rendered from it on
+      // every adjustment, so quality never degrades through repeated edits.
+      this.cropBitmap?.close();
+      this.cropBitmap = await createImageBitmap(file);
+
       if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-      this.previewUrl = URL.createObjectURL(prepared);
+      this.previewUrl = URL.createObjectURL(file);
+
+      this.selectedFile = file;
+      this.zoom.set(1);
+      this.offsetX.set(0);
+      this.offsetY.set(0);
     } catch (err) {
       console.error('[menu-form] Image processing failed:', err);
       this.photoError.set(
@@ -190,48 +211,118 @@ export class MenuForm implements OnInit {
     }
   }
 
+  // ── Crop framing ──────────────────────────────────────────────────────────
+
+  /** Measured from the DOM so the maths cannot drift out of sync with the CSS. */
+  onCropImageLoad(el: HTMLElement): void {
+    this.frameSize.set(el.clientWidth || FRAME_FALLBACK_PX);
+    this.centreImage();
+  }
+
+  /** Scale that makes the image exactly cover the frame, before user zoom. */
+  private coverScale(): number {
+    const bmp = this.cropBitmap;
+    if (!bmp) return 1;
+    return Math.max(this.frameSize() / bmp.width, this.frameSize() / bmp.height);
+  }
+
+  scaledW(): number {
+    return (this.cropBitmap?.width ?? 0) * this.coverScale() * this.zoom();
+  }
+
+  scaledH(): number {
+    return (this.cropBitmap?.height ?? 0) * this.coverScale() * this.zoom();
+  }
+
+  private centreImage(): void {
+    this.offsetX.set((this.frameSize() - this.scaledW()) / 2);
+    this.offsetY.set((this.frameSize() - this.scaledH()) / 2);
+  }
+
+  /** Stop the frame from ever showing empty space beside the image. */
+  private clampOffsets(): void {
+    const frame = this.frameSize();
+    this.offsetX.set(Math.min(0, Math.max(frame - this.scaledW(), this.offsetX())));
+    this.offsetY.set(Math.min(0, Math.max(frame - this.scaledH(), this.offsetY())));
+  }
+
+  setZoom(value: string): void {
+    const next = Number(value);
+    if (!Number.isFinite(next)) return;
+
+    // Zoom about the centre of the frame rather than the image origin, so the
+    // part being looked at stays put.
+    const frame = this.frameSize();
+    const prevW = this.scaledW();
+    const prevH = this.scaledH();
+    const cx = (frame / 2 - this.offsetX()) / prevW;
+    const cy = (frame / 2 - this.offsetY()) / prevH;
+
+    this.zoom.set(next);
+
+    this.offsetX.set(frame / 2 - cx * this.scaledW());
+    this.offsetY.set(frame / 2 - cy * this.scaledH());
+    this.clampOffsets();
+  }
+
+  onPanStart(event: PointerEvent): void {
+    if (!this.cropBitmap) return;
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    this.panFrom = { x: event.clientX, y: event.clientY };
+  }
+
+  onPanMove(event: PointerEvent): void {
+    if (!this.panFrom) return;
+    this.offsetX.update(v => v + (event.clientX - this.panFrom!.x));
+    this.offsetY.update(v => v + (event.clientY - this.panFrom!.y));
+    this.panFrom = { x: event.clientX, y: event.clientY };
+    this.clampOffsets();
+  }
+
+  onPanEnd(event: PointerEvent): void {
+    const el = event.target as HTMLElement;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+    this.panFrom = null;
+  }
+
   /**
-   * Shrink and re-encode in the browser before upload.
+   * Render the framed square to a JPEG at upload time.
    *
-   * Phone photos are many megapixels and land here as JPEG, since macOS and iOS
-   * transcode HEIC on the way into a file input. That transcode inflates the
-   * file badly: a 3 MB HEIC commonly becomes 8 MB or more as JPEG, which is why
-   * a photo that looks small in Finder used to be rejected.
-   *
-   * A menu thumbnail never needs more than ~1600px, so this typically turns a
-   * multi-megabyte original into a few hundred KB, which also keeps the
-   * storefront fast for customers on phones.
+   * Only the visible region is drawn, so the stored file is exactly what
+   * customers see, and a multi-megapixel phone photo becomes a few hundred KB.
+   * That matters because HEIC transcoding on the way into a file input inflates
+   * these badly: a 3 MB HEIC commonly arrives as 8 MB of JPEG.
    */
-  private async downscale(file: File): Promise<File> {
-    const bitmap = await createImageBitmap(file);
-    try {
-      const longestEdge = Math.max(bitmap.width, bitmap.height);
-      const scale = Math.min(1, MAX_EDGE_PX / longestEdge);
-      const width = Math.round(bitmap.width * scale);
-      const height = Math.round(bitmap.height * scale);
+  private async renderCrop(): Promise<File> {
+    const bmp = this.cropBitmap;
+    if (!bmp) throw new Error('No image loaded');
 
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+    const scale = this.coverScale() * this.zoom();
+    const sx = -this.offsetX() / scale;
+    const sy = -this.offsetY() / scale;
+    const size = this.frameSize() / scale;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas 2D context unavailable');
-      ctx.drawImage(bitmap, 0, 0, width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = OUTPUT_PX;
+    canvas.height = OUTPUT_PX;
 
-      const blob = await new Promise<Blob | null>(resolve =>
-        canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
-      );
-      if (!blob) throw new Error('Image encoding produced no data');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+    ctx.drawImage(bmp, sx, sy, size, size, 0, 0, OUTPUT_PX, OUTPUT_PX);
 
-      const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-      return new File([blob], name, { type: 'image/jpeg' });
-    } finally {
-      bitmap.close();
-    }
+    const blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
+    );
+    if (!blob) throw new Error('Image encoding produced no data');
+
+    const name = (this.selectedFile?.name ?? 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg' });
   }
 
   removePhoto(): void {
     this.photoError.set('');
+    this.cropBitmap?.close();
+    this.cropBitmap = null;
     if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
     this.previewUrl = null;
     this.selectedFile = null;
@@ -311,9 +402,9 @@ export class MenuForm implements OnInit {
     try {
       // Upload new photo if one was selected
       let photoUrls: string[] = this.currentPhotoUrl ? [this.currentPhotoUrl] : [];
-      if (this.selectedFile) {
+      if (this.cropBitmap) {
         this.uploadProgress.set(0);
-        const url = await this.uploadPhoto(this.selectedFile);
+        const url = await this.uploadPhoto(await this.renderCrop());
         photoUrls = [url];
         this.uploadProgress.set(null);
       }
