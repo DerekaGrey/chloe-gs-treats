@@ -5,6 +5,7 @@
  */
 export const environment = {
   production: false,
+  googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
     // Sandbox credentials — swap for production values when going live
     applicationId: 'sandbox-sq0idb-nMpdYXWOtm64yd6SMV0fVg',

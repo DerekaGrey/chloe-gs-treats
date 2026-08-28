@@ -4,6 +4,7 @@ import {
   OnDestroy,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -21,6 +22,20 @@ import { ConfigService } from '../../services/config.service';
 import { OrderService } from '../../services/order.service';
 import { CentsPipe } from '../../shared/cents.pipe';
 import { environment } from '../../../environments/environment';
+
+// Minimal types for the Google Places Autocomplete widget
+declare const google: {
+  maps: {
+    places: {
+      Autocomplete: new (input: HTMLInputElement, opts?: object) => {
+        addListener(event: string, fn: () => void): void;
+        getPlace(): { formatted_address?: string };
+      };
+    };
+    LatLng: new (lat: number, lng: number) => object;
+    LatLngBounds: new (sw: object, ne: object) => object;
+  };
+};
 
 declare const Square: {
   payments(applicationId: string, locationId: string): Promise<{
@@ -82,6 +97,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private squareCard: any;
+  private placesScriptLoaded = false;
 
   readonly form = this.fb.group({
     name: ['', [Validators.required]],
@@ -93,6 +109,57 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     specialRequests: [''],
     wantsEmailConfirmation: [true],
   });
+
+  constructor() {
+    effect(() => {
+      if (this.fulfillmentType() === 'delivery') {
+        this.loadPlacesScript().then(() => {
+          // Wait one tick for Angular to render the delivery address input
+          setTimeout(() => this.initPlacesAutocomplete(), 0);
+        });
+      }
+    });
+  }
+
+  private loadPlacesScript(): Promise<void> {
+    if (this.placesScriptLoaded) return Promise.resolve();
+    const existing = document.getElementById('google-places-script');
+    if (existing) { this.placesScriptLoaded = true; return Promise.resolve(); }
+    return new Promise(resolve => {
+      const script = document.createElement('script');
+      script.id = 'google-places-script';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${environment.googlePlacesApiKey}&libraries=places`;
+      script.onload = () => { this.placesScriptLoaded = true; resolve(); };
+      document.head.appendChild(script);
+    });
+  }
+
+  private initPlacesAutocomplete(): void {
+    const input = document.getElementById('deliveryAddress') as HTMLInputElement | null;
+    if (!input || typeof google === 'undefined') return;
+
+    const columbiaCenter = new google.maps.LatLng(38.9517, -92.3341);
+    const bounds = new google.maps.LatLngBounds(
+      new google.maps.LatLng(38.88, -92.45),
+      new google.maps.LatLng(39.02, -92.20),
+    );
+
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+      bounds,
+      strictBounds: false,
+      componentRestrictions: { country: 'us' },
+      types: ['address'],
+    });
+
+    void columbiaCenter;
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place.formatted_address) {
+        this.form.controls.deliveryAddress.setValue(place.formatted_address);
+      }
+    });
+  }
 
   get deliveryTimeSlots(): string[] {
     const dateVal = this.form.controls.pickupDate.value;
