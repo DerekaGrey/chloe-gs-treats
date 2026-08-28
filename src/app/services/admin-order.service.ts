@@ -25,6 +25,7 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     pickupDate: (data['pickupDate'] as Timestamp).toDate(),
     fulfillmentType: data['fulfillmentType'] ?? 'pickup',
     deliveryAddress: data['deliveryAddress'],
+    deliveryUnit: data['deliveryUnit'],
     deliveryTime: data['deliveryTime'],
     deliveryFeeCents: data['deliveryFeeCents'] ?? 0,
     specialRequests: data['specialRequests'],

@@ -130,6 +130,21 @@
               <p class="field-error">Please enter your delivery address.</p>
             }
           </div>
+
+          <div class="field">
+            <label for="deliveryUnit">Apartment, suite, or unit</label>
+            <input
+              id="deliveryUnit"
+              type="text"
+              formControlName="deliveryUnit"
+              placeholder="Apt 5B, Unit 12, Building C"
+              autocomplete="address-line2"
+            />
+            <p class="hint">
+              Optional, but please add it if you have one. Address lookup only finds
+              the building, so this is the part that gets us to your door.
+            </p>
+          </div>
         }
 
         <div class="field">

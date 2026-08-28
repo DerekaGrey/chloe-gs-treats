@@ -12,6 +12,8 @@ export interface Order {
   pickupDate: Date;
   fulfillmentType: 'pickup' | 'delivery';
   deliveryAddress?: string;
+  deliveryUnit?: string;          // apt/suite/unit, kept separate so it can be
+                                  // shown on its own line for the driver
   deliveryTime?: string;          // e.g. "11:30 AM"
   deliveryFeeCents: number;
   specialRequests?: string;

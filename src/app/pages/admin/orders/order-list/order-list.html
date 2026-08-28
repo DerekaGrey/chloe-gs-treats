@@ -81,6 +81,9 @@
                     <h3>Delivery</h3>
                     <p>{{ formatDate(order.pickupDate) }}{{ order.deliveryTime ? ' at ' + order.deliveryTime : '' }}</p>
                     <p>{{ order.deliveryAddress }}</p>
+                    @if (order.deliveryUnit) {
+                      <p class="delivery-unit">{{ order.deliveryUnit }}</p>
+                    }
                   </div>
                 }
 

@@ -132,6 +132,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     pickupDate: ['', [Validators.required, this.pickupDateValidator()]],
     deliveryTime: [''],
     deliveryAddress: [''],
+    deliveryUnit: [''],
     specialRequests: [''],
     wantsEmailConfirmation: [true],
   });
@@ -246,6 +247,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     this.fulfillmentType.set(type);
     this.form.controls.deliveryTime.setValue('');
     this.form.controls.deliveryAddress.setValue('');
+    this.form.controls.deliveryUnit.setValue('');
     this.addressSuggestions.set([]);
   }
 
@@ -343,6 +345,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         pickupDate: new Date(v.pickupDate! + 'T00:00:00').toISOString(),
         fulfillmentType: this.fulfillmentType(),
         deliveryAddress: isDelivery ? v.deliveryAddress : undefined,
+        deliveryUnit: isDelivery ? v.deliveryUnit?.trim() || undefined : undefined,
         deliveryTime: isDelivery ? v.deliveryTime : undefined,
         deliveryFeeCents: isDelivery ? DELIVERY_FEE_CENTS : 0,
         specialRequests: v.specialRequests || undefined,

@@ -57,6 +57,7 @@ function orderEmailHtml(opts: {
   paymentMethod: string;
   fulfillmentType: string;
   deliveryAddress?: string;
+  deliveryUnit?: string;
   deliveryTime?: string;
   specialRequests?: string;
 }): string {
@@ -116,6 +117,7 @@ function orderEmailHtml(opts: {
                 ? `<p style="margin:0 0 6px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Delivery</p>
                    <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${pickup}${opts.deliveryTime ? ` at ${esc(opts.deliveryTime)}` : ""}</p>
                    <p style="margin:4px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.deliveryAddress ?? "")}</p>
+                   ${opts.deliveryUnit ? `<p style="margin:2px 0 0;font-size:13px;color:#33291f;font-weight:bold">${esc(opts.deliveryUnit)}</p>` : ""}
                    <p style="margin:8px 0 0;font-size:12px;color:#8a6f5e;font-style:italic">We'll be in touch to confirm your delivery window.</p>`
                 : `<p style="margin:0 0 6px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Pickup</p>
                    <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${pickup}</p>
@@ -156,6 +158,7 @@ function ownerEmailHtml(opts: {
   paymentStatus: string;
   fulfillmentType: string;
   deliveryAddress?: string;
+  deliveryUnit?: string;
   deliveryTime?: string;
   specialRequests?: string;
 }): string {
@@ -216,6 +219,7 @@ function ownerEmailHtml(opts: {
                 <p style="margin:0 0 4px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">${isDelivery ? "Delivery" : "Pickup"}</p>
                 <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${fulfillmentLabel}</p>
                 ${isDelivery && opts.deliveryAddress ? `<p style="margin:2px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.deliveryAddress)}</p>` : ""}
+                ${isDelivery && opts.deliveryUnit ? `<p style="margin:2px 0 0;font-size:14px;color:#C24038;font-weight:bold">${esc(opts.deliveryUnit)}</p>` : ""}
               </td>
               <td width="50%" style="padding-left:8px;vertical-align:top">
                 <p style="margin:0 0 4px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Payment</p>
@@ -285,6 +289,7 @@ interface PaymentRequest {
   pickupDate: string;
   fulfillmentType: 'pickup' | 'delivery';
   deliveryAddress?: string;
+  deliveryUnit?: string;
   deliveryTime?: string;
   deliveryFeeCents: number;
   specialRequests?: string;
@@ -361,6 +366,7 @@ export const processPayment = onCall(
       pickupDate: admin.firestore.Timestamp.fromDate(new Date(data.pickupDate)),
       fulfillmentType: data.fulfillmentType ?? "pickup",
       deliveryAddress: data.deliveryAddress ?? null,
+      deliveryUnit: data.deliveryUnit ?? null,
       deliveryTime: data.deliveryTime ?? null,
       deliveryFeeCents,
       specialRequests: data.specialRequests ?? null,
@@ -403,6 +409,7 @@ export const onOrderCreated = onDocumentCreated(
     const specialRequests: string | undefined = data["specialRequests"] ?? undefined;
     const fulfillmentType: string = data["fulfillmentType"] ?? "pickup";
     const deliveryAddress: string | undefined = data["deliveryAddress"] ?? undefined;
+    const deliveryUnit: string | undefined = data["deliveryUnit"] ?? undefined;
     const deliveryTime: string | undefined = data["deliveryTime"] ?? undefined;
 
     // Customer confirmation — only if they opted in. Logged but non-fatal so a
@@ -423,6 +430,7 @@ export const onOrderCreated = onDocumentCreated(
             paymentMethod,
             fulfillmentType,
             deliveryAddress,
+            deliveryUnit,
             deliveryTime,
             specialRequests,
           }),
@@ -450,6 +458,7 @@ export const onOrderCreated = onDocumentCreated(
           paymentStatus: data["paymentStatus"] ?? "unpaid",
           fulfillmentType,
           deliveryAddress,
+          deliveryUnit,
           deliveryTime,
           specialRequests,
         }),

@@ -28,6 +28,9 @@
           @if (o.fulfillmentType === 'delivery') {
             <p><strong>Delivery:</strong> {{ o.pickupDate | date: 'EEEE, MMMM d, y' }} at {{ o.deliveryTime }}</p>
             <p>{{ o.deliveryAddress }}</p>
+            @if (o.deliveryUnit) {
+              <p><strong>{{ o.deliveryUnit }}</strong></p>
+            }
             <p class="delivery-note">We'll be in touch to confirm your delivery window.</p>
           } @else {
             <p><strong>Pickup:</strong> {{ o.pickupDate | date: 'EEEE, MMMM d, y' }}</p>

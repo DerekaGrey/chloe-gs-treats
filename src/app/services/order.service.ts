@@ -25,6 +25,7 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     pickupDate: (data['pickupDate'] as Timestamp).toDate(),
     fulfillmentType: data['fulfillmentType'] ?? 'pickup',
     deliveryAddress: data['deliveryAddress'],
+    deliveryUnit: data['deliveryUnit'],
     deliveryTime: data['deliveryTime'],
     deliveryFeeCents: data['deliveryFeeCents'] ?? 0,
     specialRequests: data['specialRequests'],
@@ -59,6 +60,7 @@ export class OrderService {
     pickupDate: Date;
     fulfillmentType: 'pickup' | 'delivery';
     deliveryAddress?: string;
+    deliveryUnit?: string;
     deliveryTime?: string;
     deliveryFeeCents: number;
     specialRequests?: string;
@@ -81,6 +83,7 @@ export class OrderService {
       pickupDate: input.pickupDate,
       fulfillmentType: input.fulfillmentType,
       deliveryAddress: input.deliveryAddress ?? null,
+      deliveryUnit: input.deliveryUnit ?? null,
       deliveryTime: input.deliveryTime ?? null,
       deliveryFeeCents: input.deliveryFeeCents,
       specialRequests: input.specialRequests ?? null,
@@ -102,6 +105,7 @@ export class OrderService {
       pickupDate: input.pickupDate,
       fulfillmentType: input.fulfillmentType,
       deliveryAddress: input.deliveryAddress,
+      deliveryUnit: input.deliveryUnit,
       deliveryTime: input.deliveryTime,
       deliveryFeeCents: input.deliveryFeeCents,
       specialRequests: input.specialRequests,
