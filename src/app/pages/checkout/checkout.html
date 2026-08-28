@@ -31,17 +31,89 @@
           }
         </div>
 
+        <!-- Fulfillment type -->
         <div class="field">
-          <label for="pickupDate">Pickup date *</label>
-          <input id="pickupDate" type="date" formControlName="pickupDate" [min]="minDate()" />
+          <label class="field-label">How would you like to receive your order? *</label>
+          <div class="fulfillment-options">
+            <button
+              type="button"
+              class="fulfillment-btn"
+              [class.active]="fulfillmentType() === 'pickup'"
+              (click)="setFulfillmentType('pickup')"
+            >
+              <span class="fulfillment-icon">🧺</span>
+              <span class="fulfillment-title">Pickup</span>
+              <span class="fulfillment-desc">Free — pick up at our location</span>
+            </button>
+            <button
+              type="button"
+              class="fulfillment-btn"
+              [class.active]="fulfillmentType() === 'delivery'"
+              (click)="setFulfillmentType('delivery')"
+            >
+              <span class="fulfillment-icon">🚗</span>
+              <span class="fulfillment-title">Delivery <span class="fulfillment-fee">+$5.00</span></span>
+              <span class="fulfillment-desc">Columbia, MO delivery</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Date (pickup or delivery) -->
+        <div class="field">
+          <label for="pickupDate">
+            {{ fulfillmentType() === 'delivery' ? 'Delivery date' : 'Pickup date' }} *
+          </label>
+          <input
+            id="pickupDate"
+            type="date"
+            formControlName="pickupDate"
+            [min]="minDate()"
+            (change)="onDateChange()"
+          />
           <p class="hint">Please order at least {{ cfg().defaultLeadTimeDays }} days ahead so everything is fresh-baked.</p>
           @if (form.controls.pickupDate.touched && form.controls.pickupDate.hasError('required')) {
-            <p class="field-error">Please choose a pickup date.</p>
+            <p class="field-error">Please choose a date.</p>
           }
           @if (form.controls.pickupDate.hasError('invalidPickupDate')) {
             <p class="field-error">That date is too soon or unavailable, please pick another.</p>
           }
         </div>
+
+        <!-- Delivery-only fields -->
+        @if (fulfillmentType() === 'delivery') {
+          <div class="field">
+            <label for="deliveryTime">Delivery time *</label>
+            <select id="deliveryTime" formControlName="deliveryTime">
+              <option value="">Select a time...</option>
+              @for (slot of deliveryTimeSlots; track slot) {
+                <option [value]="slot">{{ slot }}</option>
+              }
+            </select>
+            @if (form.controls.deliveryTime.touched && !form.controls.deliveryTime.value) {
+              <p class="field-error">Please select a delivery time.</p>
+            }
+            <p class="hint">
+              Weekday deliveries: 11:00 AM – 1:30 PM. Weekend deliveries: flexible.
+              Need a different time? Email us at
+              <a href="mailto:chloegshomemadetreats@gmail.com">chloegshomemadetreats@gmail.com</a>
+              and we'll do our best to accommodate.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="deliveryAddress">Delivery address *</label>
+            <input
+              id="deliveryAddress"
+              type="text"
+              formControlName="deliveryAddress"
+              placeholder="Street address, Columbia, MO"
+              autocomplete="street-address"
+            />
+            @if (form.controls.deliveryAddress.touched && !form.controls.deliveryAddress.value?.trim()) {
+              <p class="field-error">Please enter your delivery address.</p>
+            }
+          </div>
+        }
 
         <div class="field">
           <label for="notes">Special requests (optional)</label>
@@ -64,7 +136,7 @@
           @if (submitting()) {
             Processing payment...
           } @else {
-            Pay {{ subtotalCents() | cents }}
+            Pay {{ totalCents() | cents }}
           }
         </button>
       </form>
@@ -77,9 +149,19 @@
             <span>{{ line.packCount }} × {{ line.item.name }} ({{ line.pack.label }})</span>
           </div>
         }
-        <div class="sum-total">
+        <div class="sum-subtotal">
           <span>Subtotal</span>
-          <strong>{{ subtotalCents() | cents }}</strong>
+          <span>{{ subtotalCents() | cents }}</span>
+        </div>
+        @if (fulfillmentType() === 'delivery') {
+          <div class="sum-delivery">
+            <span>Delivery</span>
+            <span>{{ DELIVERY_FEE_CENTS | cents }}</span>
+          </div>
+        }
+        <div class="sum-total">
+          <span>Total</span>
+          <strong>{{ totalCents() | cents }}</strong>
         </div>
         <a routerLink="/cart" class="edit-link">Edit cart</a>
       </aside>

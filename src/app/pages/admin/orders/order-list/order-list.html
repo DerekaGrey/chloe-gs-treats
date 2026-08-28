@@ -43,10 +43,18 @@
               <span class="payment-badge" [class.paid]="order.paymentStatus === 'paid'">
                 {{ order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid' }}
               </span>
+              @if (order.fulfillmentType === 'delivery') {
+                <span class="delivery-badge">Delivery</span>
+              }
             </div>
             <div class="order-center">
               <span class="customer-name">{{ order.customer.name }}</span>
-              <span class="pickup-date">Pickup: {{ formatDate(order.pickupDate) }}</span>
+              <span class="pickup-date">
+                {{ order.fulfillmentType === 'delivery' ? 'Delivery' : 'Pickup' }}: {{ formatDate(order.pickupDate) }}
+                @if (order.fulfillmentType === 'delivery' && order.deliveryTime) {
+                  at {{ order.deliveryTime }}
+                }
+              </span>
             </div>
             <div class="order-right">
               <span class="order-total">{{ order.totalCents | cents }}</span>
@@ -67,6 +75,14 @@
                     <p>{{ order.customer.phone }}</p>
                   }
                 </div>
+
+                @if (order.fulfillmentType === 'delivery') {
+                  <div class="detail-section delivery-detail">
+                    <h3>Delivery</h3>
+                    <p>{{ formatDate(order.pickupDate) }}{{ order.deliveryTime ? ' at ' + order.deliveryTime : '' }}</p>
+                    <p>{{ order.deliveryAddress }}</p>
+                  </div>
+                }
 
                 <div class="detail-section">
                   <h3>Items</h3>

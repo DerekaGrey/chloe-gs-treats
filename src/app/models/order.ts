@@ -10,6 +10,10 @@ export interface Order {
   subtotalCents: number;
   totalCents: number;
   pickupDate: Date;
+  fulfillmentType: 'pickup' | 'delivery';
+  deliveryAddress?: string;
+  deliveryTime?: string;          // e.g. "11:30 AM"
+  deliveryFeeCents: number;
   specialRequests?: string;
   status: OrderStatus;
   paymentMethod: 'pay_at_pickup' | 'square';

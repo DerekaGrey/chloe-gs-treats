@@ -18,6 +18,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { CartService } from '../../services/cart.service';
 import { ConfigService } from '../../services/config.service';
+import { OrderService } from '../../services/order.service';
 import { CentsPipe } from '../../shared/cents.pipe';
 import { environment } from '../../../environments/environment';
 
@@ -31,6 +32,28 @@ declare const Square: {
   }>;
 };
 
+const DELIVERY_FEE_CENTS = 500;
+
+const WEEKDAY_SLOTS = [
+  '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
+];
+
+function buildWeekendSlots(): string[] {
+  const slots: string[] = [];
+  for (let h = 9; h <= 20; h++) {
+    for (const m of [0, 30]) {
+      if (h === 20 && m > 0) break;
+      const hour12 = h > 12 ? h - 12 : h;
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const mins = m === 0 ? '00' : '30';
+      slots.push(`${hour12}:${mins} ${ampm}`);
+    }
+  }
+  return slots;
+}
+
+const WEEKEND_SLOTS = buildWeekendSlots();
+
 @Component({
   selector: 'app-checkout',
   imports: [ReactiveFormsModule, RouterLink, CentsPipe],
@@ -41,14 +64,21 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly cart = inject(CartService);
   private readonly config = inject(ConfigService);
+  private readonly orderService = inject(OrderService);
   private readonly router = inject(Router);
 
+  readonly DELIVERY_FEE_CENTS = DELIVERY_FEE_CENTS;
   readonly lines = this.cart.lines;
   readonly subtotalCents = this.cart.subtotalCents;
   readonly cfg = computed(() => this.config.config);
   readonly minDate = computed(() => this.toInputDate(this.config.earliestPickupDate()));
   readonly submitting = signal(false);
   readonly cardError = signal('');
+  readonly fulfillmentType = signal<'pickup' | 'delivery'>('pickup');
+
+  readonly totalCents = computed(() =>
+    this.subtotalCents() + (this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0)
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private squareCard: any;
@@ -58,9 +88,28 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required]],
     pickupDate: ['', [Validators.required, this.pickupDateValidator()]],
+    deliveryTime: [''],
+    deliveryAddress: [''],
     specialRequests: [''],
     wantsEmailConfirmation: [true],
   });
+
+  get deliveryTimeSlots(): string[] {
+    const dateVal = this.form.controls.pickupDate.value;
+    if (!dateVal) return WEEKDAY_SLOTS;
+    const dow = new Date(dateVal + 'T00:00:00').getDay();
+    return (dow === 0 || dow === 6) ? WEEKEND_SLOTS : WEEKDAY_SLOTS;
+  }
+
+  setFulfillmentType(type: 'pickup' | 'delivery'): void {
+    this.fulfillmentType.set(type);
+    this.form.controls.deliveryTime.setValue('');
+    this.form.controls.deliveryAddress.setValue('');
+  }
+
+  onDateChange(): void {
+    this.form.controls.deliveryTime.setValue('');
+  }
 
   ngOnInit(): void {
     if (this.lines().length === 0) {
@@ -107,8 +156,24 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
+
+    const v = this.form.getRawValue();
+    const isDelivery = this.fulfillmentType() === 'delivery';
+
+    if (isDelivery && !v.deliveryTime) {
+      this.form.controls.deliveryTime.markAsTouched();
+      this.cardError.set('Please select a delivery time.');
+      return;
+    }
+    if (isDelivery && !v.deliveryAddress?.trim()) {
+      this.form.controls.deliveryAddress.markAsTouched();
+      this.cardError.set('Please enter your delivery address.');
+      return;
+    }
+
     this.submitting.set(true);
     this.cardError.set('');
+
     try {
       if (!this.squareCard) {
         console.error('[checkout] Square card form never initialised.');
@@ -125,7 +190,6 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      const v = this.form.getRawValue();
       const processPayment = httpsCallable<unknown, { orderNumber: string }>(
         getFunctions(),
         'processPayment',
@@ -134,6 +198,10 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         sourceId: tokenResult.token,
         customer: { name: v.name, email: v.email, phone: v.phone },
         pickupDate: new Date(v.pickupDate! + 'T00:00:00').toISOString(),
+        fulfillmentType: this.fulfillmentType(),
+        deliveryAddress: isDelivery ? v.deliveryAddress : undefined,
+        deliveryTime: isDelivery ? v.deliveryTime : undefined,
+        deliveryFeeCents: isDelivery ? DELIVERY_FEE_CENTS : 0,
         specialRequests: v.specialRequests || undefined,
         wantsEmailConfirmation: !!v.wantsEmailConfirmation,
         cartLines: this.cart.lines().map(l => ({
@@ -151,7 +219,6 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
       this.cart.clear();
       await this.router.navigate(['/order', data.orderNumber]);
     } catch (err) {
-      // Surface the real cause — the generic message alone makes this undebuggable.
       console.error('[checkout] Payment failed:', err);
       const e = err as { code?: string; message?: string };
       this.cardError.set(

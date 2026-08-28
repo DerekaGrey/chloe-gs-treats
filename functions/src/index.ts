@@ -55,16 +55,19 @@ function orderEmailHtml(opts: {
   pickupDate: Date;
   pickupLocation: string;
   paymentMethod: string;
+  fulfillmentType: string;
+  deliveryAddress?: string;
+  deliveryTime?: string;
   specialRequests?: string;
 }): string {
   const rows = opts.lines
     .map((l) => {
       const optLines = (l.selectedOptions ?? [])
-        .map((o) => `<div style="color:#777;font-size:12px">${esc(o.groupName)}: ${esc(o.optionLabel)}</div>`)
+        .map((o) => `<div style="color:#8a6f5e;font-size:12px;margin-top:2px">${esc(o.groupName)}: ${esc(o.optionLabel)}</div>`)
         .join("");
       return `<tr>
-        <td style="padding:6px 0">${l.packCount} × ${esc(l.nameSnapshot)} (pack of ${esc(l.packLabelSnapshot)})${optLines}</td>
-        <td style="padding:6px 0;text-align:right">${money(l.lineTotalCents)}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #e8ddd6;color:#33291f;font-size:14px">${l.packCount} × ${esc(l.nameSnapshot)} (pack of ${esc(l.packLabelSnapshot)})${optLines}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #e8ddd6;text-align:right;color:#33291f;font-size:14px;white-space:nowrap">${money(l.lineTotalCents)}</td>
       </tr>`;
     })
     .join("");
@@ -78,25 +81,67 @@ function orderEmailHtml(opts: {
   });
 
   const paymentNote = opts.paymentMethod === "square"
-    ? "<p style=\"color:#777;font-size:12px;margin-top:24px\">Nothing to pay at pickup — your card has already been charged.</p>"
-    : "<p style=\"margin-top:20px\"><strong>Payment:</strong> Pay via Venmo or cash when you pick up your order.</p>";
+    ? `<p style="margin:0;color:#8a6f5e;font-size:13px">Nothing to pay at pickup — your card has already been charged.</p>`
+    : `<p style="margin:0;color:#33291f;font-size:14px"><strong>Payment:</strong> Please pay via Venmo or cash when you pick up your order.</p>`;
 
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#33291f">
-    <h2 style="color:#b03a2e">Thank you, ${esc(opts.name)}!</h2>
-    <p>Your order has been placed. Here are the details:</p>
-    <p><strong>Order ${esc(opts.orderNumber)}</strong></p>
-    <table style="width:100%;border-collapse:collapse;font-size:14px">
-      ${rows}
-      <tr><td style="border-top:1px solid #ddd;padding-top:8px"><strong>Total</strong></td>
-          <td style="border-top:1px solid #ddd;padding-top:8px;text-align:right"><strong>${money(opts.totalCents)}</strong></td></tr>
-    </table>
-    <p style="margin-top:20px"><strong>Pickup:</strong> ${pickup}<br>${esc(opts.pickupLocation)}</p>
-    ${opts.specialRequests ? `<p><strong>Special requests:</strong> ${esc(opts.specialRequests)}</p>` : ""}
-    ${paymentNote}
-    <p style="color:#777;font-size:12px;margin-top:24px">
-      This product is prepared in a kitchen not subject to inspection by the Missouri Department of Health and Senior Services.
-    </p>
-  </div>`;
+  return `<div style="margin:0;padding:0;background-color:#F4DEE1">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4DEE1;padding:32px 16px">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background-color:#F1ECE2;border-radius:8px;overflow:hidden;max-width:520px;width:100%">
+
+        <!-- Header -->
+        <tr><td style="background-color:#C24038;padding:28px 32px;text-align:center">
+          <p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#ffffff;letter-spacing:1px">Chloe G's Homemade Treats</p>
+          <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#f4dee1;letter-spacing:2px;text-transform:uppercase">Order Confirmation</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:28px 32px;font-family:Arial,Helvetica,sans-serif;color:#33291f">
+          <p style="margin:0 0 4px;font-size:18px;font-weight:bold">Thank you, ${esc(opts.name)}!</p>
+          <p style="margin:0 0 20px;font-size:14px;color:#8a6f5e">Your order has been placed. Here are the details:</p>
+
+          <p style="margin:0 0 16px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Order ${esc(opts.orderNumber)}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${rows}
+            <tr>
+              <td style="padding:12px 0 0;font-size:15px;font-weight:bold;color:#33291f">Total</td>
+              <td style="padding:12px 0 0;text-align:right;font-size:15px;font-weight:bold;color:#C24038">${money(opts.totalCents)}</td>
+            </tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background-color:#F4DEE1;border-radius:6px">
+            <tr><td style="padding:16px">
+              ${opts.fulfillmentType === "delivery"
+                ? `<p style="margin:0 0 6px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Delivery</p>
+                   <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${pickup}${opts.deliveryTime ? ` at ${esc(opts.deliveryTime)}` : ""}</p>
+                   <p style="margin:4px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.deliveryAddress ?? "")}</p>
+                   <p style="margin:8px 0 0;font-size:12px;color:#8a6f5e;font-style:italic">We'll be in touch to confirm your delivery window.</p>`
+                : `<p style="margin:0 0 6px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Pickup</p>
+                   <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${pickup}</p>
+                   <p style="margin:4px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.pickupLocation)}</p>`
+              }
+            </td></tr>
+          </table>
+
+          ${opts.specialRequests ? `<p style="margin:20px 0 0;font-size:14px"><strong>Special requests:</strong> ${esc(opts.specialRequests)}</p>` : ""}
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:1px solid #e8ddd6">
+            <tr><td style="padding-top:16px">${paymentNote}</td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background-color:#e8ddd6;padding:16px 32px;text-align:center">
+          <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#8a6f5e;line-height:1.5">
+            This product is prepared in a kitchen not subject to inspection by the Missouri Department of Health and Senior Services.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</div>`;
 }
 
 function ownerEmailHtml(opts: {
@@ -109,6 +154,9 @@ function ownerEmailHtml(opts: {
   pickupDate: Date;
   paymentMethod: string;
   paymentStatus: string;
+  fulfillmentType: string;
+  deliveryAddress?: string;
+  deliveryTime?: string;
   specialRequests?: string;
 }): string {
   const rows = opts.lines
@@ -117,8 +165,8 @@ function ownerEmailHtml(opts: {
         .map((o) => `${esc(o.groupName)}: ${esc(o.optionLabel)}`)
         .join(", ");
       return `<tr>
-        <td style="padding:4px 8px 4px 0">${l.packCount} × ${esc(l.nameSnapshot)} (pack of ${esc(l.packLabelSnapshot)})${optLines ? ` — ${optLines}` : ""}</td>
-        <td style="padding:4px 0;text-align:right">${money(l.lineTotalCents)}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #e8ddd6;color:#33291f;font-size:14px">${l.packCount} × ${esc(l.nameSnapshot)} (pack of ${esc(l.packLabelSnapshot)})${optLines ? `<div style="color:#8a6f5e;font-size:12px;margin-top:2px">${optLines}</div>` : ""}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #e8ddd6;text-align:right;color:#33291f;font-size:14px;white-space:nowrap">${money(l.lineTotalCents)}</td>
       </tr>`;
     })
     .join("");
@@ -132,22 +180,77 @@ function ownerEmailHtml(opts: {
   });
 
   const paymentLabel = opts.paymentMethod === "square" ? "Square (paid)" : "Pay at pickup";
+  const isDelivery = opts.fulfillmentType === "delivery";
+  const fulfillmentLabel = isDelivery
+    ? `${pickup}${opts.deliveryTime ? ` at ${esc(opts.deliveryTime)}` : ""}`
+    : pickup;
 
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:580px;margin:0 auto;color:#33291f">
-    <h2 style="color:#b03a2e">New order — ${esc(opts.orderNumber)}</h2>
-    <p><strong>Customer:</strong> ${esc(opts.customerName)}<br>
-       <strong>Email:</strong> ${esc(opts.customerEmail)}<br>
-       ${opts.customerPhone ? `<strong>Phone:</strong> ${esc(opts.customerPhone)}<br>` : ""}
-       <strong>Pickup:</strong> ${pickup}<br>
-       <strong>Payment:</strong> ${paymentLabel}
-    </p>
-    <table style="width:100%;border-collapse:collapse;font-size:14px">
-      ${rows}
-      <tr><td style="border-top:1px solid #ddd;padding-top:8px"><strong>Total</strong></td>
-          <td style="border-top:1px solid #ddd;padding-top:8px;text-align:right"><strong>${money(opts.totalCents)}</strong></td></tr>
-    </table>
-    ${opts.specialRequests ? `<p style="margin-top:16px"><strong>Special requests:</strong> ${esc(opts.specialRequests)}</p>` : ""}
-  </div>`;
+  return `<div style="margin:0;padding:0;background-color:#F4DEE1">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4DEE1;padding:32px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#F1ECE2;border-radius:8px;overflow:hidden;max-width:560px;width:100%">
+
+        <!-- Header -->
+        <tr><td style="background-color:#C24038;padding:24px 32px">
+          <p style="margin:0;font-family:Georgia,serif;font-size:18px;color:#ffffff">Chloe G's Homemade Treats</p>
+          <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#ffffff">New Order — ${esc(opts.orderNumber)}${isDelivery ? " 🚗" : ""}</p>
+        </td></tr>
+
+        <!-- Customer info -->
+        <tr><td style="padding:24px 32px 0;font-family:Arial,Helvetica,sans-serif">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4DEE1;border-radius:6px">
+            <tr><td style="padding:16px">
+              <p style="margin:0 0 6px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Customer</p>
+              <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${esc(opts.customerName)}</p>
+              <p style="margin:2px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.customerEmail)}</p>
+              ${opts.customerPhone ? `<p style="margin:2px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.customerPhone)}</p>` : ""}
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Fulfillment + payment -->
+        <tr><td style="padding:16px 32px 0;font-family:Arial,Helvetica,sans-serif">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="50%" style="padding-right:8px;vertical-align:top">
+                <p style="margin:0 0 4px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">${isDelivery ? "Delivery" : "Pickup"}</p>
+                <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${fulfillmentLabel}</p>
+                ${isDelivery && opts.deliveryAddress ? `<p style="margin:2px 0 0;font-size:13px;color:#8a6f5e">${esc(opts.deliveryAddress)}</p>` : ""}
+              </td>
+              <td width="50%" style="padding-left:8px;vertical-align:top">
+                <p style="margin:0 0 4px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Payment</p>
+                <p style="margin:0;font-size:14px;color:#33291f;font-weight:bold">${paymentLabel}</p>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Order items -->
+        <tr><td style="padding:20px 32px 0;font-family:Arial,Helvetica,sans-serif">
+          <p style="margin:0 0 8px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Items</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${rows}
+            <tr>
+              <td style="padding:12px 0 0;font-size:15px;font-weight:bold;color:#33291f">Total</td>
+              <td style="padding:12px 0 0;text-align:right;font-size:15px;font-weight:bold;color:#C24038">${money(opts.totalCents)}</td>
+            </tr>
+          </table>
+        </td></tr>
+
+        ${opts.specialRequests ? `<tr><td style="padding:20px 32px 0;font-family:Arial,Helvetica,sans-serif">
+          <p style="margin:0 0 4px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Special Requests</p>
+          <p style="margin:0;font-size:14px;color:#33291f">${esc(opts.specialRequests)}</p>
+        </td></tr>` : ""}
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 32px;font-family:Arial,Helvetica,sans-serif">
+          <p style="margin:0;font-size:12px;color:#8a6f5e">Reply to this email or contact ${esc(opts.customerEmail)} to reach the customer.</p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</div>`;
 }
 
 async function sendEmail(opts: {
@@ -180,6 +283,10 @@ interface PaymentRequest {
   sourceId: string;
   customer: { name: string; email: string; phone: string };
   pickupDate: string;
+  fulfillmentType: 'pickup' | 'delivery';
+  deliveryAddress?: string;
+  deliveryTime?: string;
+  deliveryFeeCents: number;
   specialRequests?: string;
   wantsEmailConfirmation: boolean;
   cartLines: CartLine[];
@@ -206,8 +313,10 @@ export const processPayment = onCall(
       (sum, line) => sum + line.lineTotalCents,
       0,
     );
+    const deliveryFeeCents = data.fulfillmentType === "delivery" ? (data.deliveryFeeCents ?? 500) : 0;
+    const totalCents = subtotalCents + deliveryFeeCents;
 
-    if (subtotalCents <= 0) {
+    if (totalCents <= 0) {
       throw new HttpsError("invalid-argument", "Order total must be greater than zero");
     }
 
@@ -222,7 +331,7 @@ export const processPayment = onCall(
       body: JSON.stringify({
         source_id: data.sourceId,
         idempotency_key: randomUUID(),
-        amount_money: { amount: subtotalCents, currency: "USD" },
+        amount_money: { amount: totalCents, currency: "USD" },
         location_id: LOCATION_ID,
         buyer_email_address: data.customer.email,
         note: `Chloe G's Treats — ${data.customer.name}`,
@@ -248,8 +357,12 @@ export const processPayment = onCall(
       isGuest: true,
       items: data.cartLines,
       subtotalCents,
-      totalCents: subtotalCents,
+      totalCents,
       pickupDate: admin.firestore.Timestamp.fromDate(new Date(data.pickupDate)),
+      fulfillmentType: data.fulfillmentType ?? "pickup",
+      deliveryAddress: data.deliveryAddress ?? null,
+      deliveryTime: data.deliveryTime ?? null,
+      deliveryFeeCents,
       specialRequests: data.specialRequests ?? null,
       status: "confirmed",
       paymentMethod: "square",
@@ -288,6 +401,9 @@ export const onOrderCreated = onDocumentCreated(
     const totalCents: number = data["totalCents"] ?? 0;
     const lines: CartLine[] = (data["items"] ?? []) as CartLine[];
     const specialRequests: string | undefined = data["specialRequests"] ?? undefined;
+    const fulfillmentType: string = data["fulfillmentType"] ?? "pickup";
+    const deliveryAddress: string | undefined = data["deliveryAddress"] ?? undefined;
+    const deliveryTime: string | undefined = data["deliveryTime"] ?? undefined;
 
     // Customer confirmation — only if they opted in. Logged but non-fatal so a
     // Resend sandbox rejection never blocks the owner notification.
@@ -305,6 +421,9 @@ export const onOrderCreated = onDocumentCreated(
             pickupDate,
             pickupLocation,
             paymentMethod,
+            fulfillmentType,
+            deliveryAddress,
+            deliveryTime,
             specialRequests,
           }),
         });
@@ -318,7 +437,7 @@ export const onOrderCreated = onDocumentCreated(
       await sendEmail({
         apiKey,
         to: ownerEmail,
-        subject: `New order ${orderNumber} — ${customerName}`,
+        subject: `New order ${orderNumber} — ${customerName}${fulfillmentType === "delivery" ? " 🚗 DELIVERY" : ""}`,
         html: ownerEmailHtml({
           orderNumber,
           customerName,
@@ -329,6 +448,9 @@ export const onOrderCreated = onDocumentCreated(
           pickupDate,
           paymentMethod,
           paymentStatus: data["paymentStatus"] ?? "unpaid",
+          fulfillmentType,
+          deliveryAddress,
+          deliveryTime,
           specialRequests,
         }),
       });

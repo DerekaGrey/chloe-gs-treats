@@ -1,3 +1,47 @@
+.fulfillment-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.fulfillment-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border: 2px solid var(--color-cream-dark);
+  border-radius: 8px;
+  background: var(--color-cream);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+
+  &.active {
+    border-color: var(--color-red);
+    background: #fff5f5;
+  }
+}
+
+.fulfillment-icon { font-size: 1.3rem; }
+.fulfillment-title { font-size: 0.95rem; font-weight: 600; color: var(--color-ink); }
+.fulfillment-fee { color: var(--color-red); font-weight: 700; }
+.fulfillment-desc { font-size: 0.78rem; color: var(--color-ink-soft); }
+
+.field-label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.1rem; }
+
+.sum-subtotal,
+.sum-delivery {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--color-ink-soft);
+  margin-top: 0.5rem;
+}
+
+.sum-delivery { color: var(--color-ink); }
+
 .checkout-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;

@@ -23,6 +23,10 @@ function docToOrder(d: QueryDocumentSnapshot<DocumentData>): Order {
     subtotalCents: data['subtotalCents'],
     totalCents: data['totalCents'],
     pickupDate: (data['pickupDate'] as Timestamp).toDate(),
+    fulfillmentType: data['fulfillmentType'] ?? 'pickup',
+    deliveryAddress: data['deliveryAddress'],
+    deliveryTime: data['deliveryTime'],
+    deliveryFeeCents: data['deliveryFeeCents'] ?? 0,
     specialRequests: data['specialRequests'],
     status: data['status'],
     paymentMethod: data['paymentMethod'],
@@ -53,6 +57,10 @@ export class OrderService {
   async createOrder(input: {
     customer: CustomerInfo;
     pickupDate: Date;
+    fulfillmentType: 'pickup' | 'delivery';
+    deliveryAddress?: string;
+    deliveryTime?: string;
+    deliveryFeeCents: number;
     specialRequests?: string;
     wantsEmailConfirmation: boolean;
   }): Promise<Order> {
@@ -60,6 +68,7 @@ export class OrderService {
     const lines = this.cart.lines();
     const items = this.toLineItems(lines);
     const subtotalCents = items.reduce((s, i) => s + i.lineTotalCents, 0);
+    const totalCents = subtotalCents + input.deliveryFeeCents;
     const orderNumber = this.nextOrderNumber();
 
     await addDoc(collection(db, 'orders'), {
@@ -68,8 +77,12 @@ export class OrderService {
       isGuest: true,
       items,
       subtotalCents,
-      totalCents: subtotalCents,
+      totalCents,
       pickupDate: input.pickupDate,
+      fulfillmentType: input.fulfillmentType,
+      deliveryAddress: input.deliveryAddress ?? null,
+      deliveryTime: input.deliveryTime ?? null,
+      deliveryFeeCents: input.deliveryFeeCents,
       specialRequests: input.specialRequests ?? null,
       status: 'pending',
       paymentMethod: 'pay_at_pickup',
@@ -85,8 +98,12 @@ export class OrderService {
       customer: input.customer,
       items,
       subtotalCents,
-      totalCents: subtotalCents,
+      totalCents,
       pickupDate: input.pickupDate,
+      fulfillmentType: input.fulfillmentType,
+      deliveryAddress: input.deliveryAddress,
+      deliveryTime: input.deliveryTime,
+      deliveryFeeCents: input.deliveryFeeCents,
       specialRequests: input.specialRequests,
       status: 'pending',
       paymentMethod: 'pay_at_pickup',
