@@ -16,8 +16,8 @@ export const environment = {
   googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
     mode: 'production' as 'sandbox' | 'production',
-    applicationId: 'REPLACE_ME',
-    locationId: 'REPLACE_ME',
+    applicationId: 'sq0idp-eoDdJooG0cevV-KSTpNLaQ',
+    locationId: 'LN1HR4JJ0NSPW',
     scriptUrl: 'https://web.squarecdn.com/v1/square.js',
   },
   firebase: {
