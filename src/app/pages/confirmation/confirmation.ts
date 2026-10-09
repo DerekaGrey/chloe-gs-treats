@@ -19,9 +19,14 @@ export class Confirmation {
 
   readonly cfg = computed(() => this.config.config);
   readonly order = signal<Order | undefined>(undefined);
+  /** False until the lookup returns, so "not found" never flashes while loading. */
+  readonly loaded = signal(false);
 
   constructor() {
     const orderId = this.route.snapshot.paramMap.get('orderId') ?? '';
-    this.orders.getConfirmation(orderId).then(o => this.order.set(o));
+    this.orders.getConfirmation(orderId).then(o => {
+      this.order.set(o);
+      this.loaded.set(true);
+    });
   }
 }

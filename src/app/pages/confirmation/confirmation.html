@@ -18,6 +18,12 @@
               <div class="opt-row">{{ opt.groupName }}: {{ opt.optionLabel }}</div>
             }
           }
+          @if (o.deliveryFeeCents) {
+            <div class="row">
+              <span>Delivery fee</span>
+              <span>{{ o.deliveryFeeCents | cents }}</span>
+            </div>
+          }
           @if (o.taxCents) {
             <div class="row">
               <span>Sales tax</span>
@@ -68,7 +74,7 @@
 
         <a routerLink="/menu" class="btn btn-outline">Back to Menu</a>
       </div>
-    } @else {
+    } @else if (loaded()) {
       <div class="card not-found">
         <p>We couldn't find that order.</p>
         <a routerLink="/menu" class="btn btn-primary">Back to Menu</a>

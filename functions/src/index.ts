@@ -10,17 +10,20 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
+import * as nodemailer from "nodemailer";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
 const squareAccessToken = defineSecret("SQUARE_ACCESS_TOKEN");
-const resendApiKey = defineSecret("RESEND_API_KEY");
+const gmailAppPassword = defineSecret("GMAIL_APP_PASSWORD");
 
-// Update FROM_EMAIL once you verify a domain with Resend.
-// Until then, Resend only delivers to your own verified address (owner notifications
-// will work; customer emails need a verified domain).
-const FROM_EMAIL = "Chloe G's Homemade Treats <onboarding@resend.dev>";
+// Emails go out through the bakery Gmail account using an app password
+// (Google Account > Security > App passwords). Gmail always sends as the
+// authenticated account, so replies to customers land in Chloe's own inbox.
+// Limit is ~500 messages/day, far above this bakery's volume.
+const GMAIL_USER = "chloegshomemadetreats@gmail.com";
+const FROM_EMAIL = `Chloe G's Homemade Treats <${GMAIL_USER}>`;
 
 // Sandbox base URL — change to https://connect.squareup.com when going live
 const SQUARE_BASE_URL = "https://connect.squareupsandbox.com";
@@ -52,6 +55,7 @@ function orderEmailHtml(opts: {
   orderNumber: string;
   lines: CartLine[];
   totalCents: number;
+  deliveryFeeCents?: number;
   taxCents?: number;
   tipCents?: number;
   pickupDate: Date;
@@ -107,6 +111,10 @@ function orderEmailHtml(opts: {
 
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.deliveryFeeCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Delivery fee</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.deliveryFeeCents)}</td>
+            </tr>` : ""}
             ${opts.taxCents ? `<tr>
               <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Sales tax</td>
               <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.taxCents)}</td>
@@ -163,6 +171,7 @@ function ownerEmailHtml(opts: {
   customerPhone?: string;
   lines: CartLine[];
   totalCents: number;
+  deliveryFeeCents?: number;
   taxCents?: number;
   tipCents?: number;
   pickupDate: Date;
@@ -246,6 +255,10 @@ function ownerEmailHtml(opts: {
           <p style="margin:0 0 8px;font-size:13px;color:#8a6f5e;letter-spacing:1px;text-transform:uppercase;font-weight:bold">Items</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             ${rows}
+            ${opts.deliveryFeeCents ? `<tr>
+              <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Delivery fee</td>
+              <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.deliveryFeeCents)}</td>
+            </tr>` : ""}
             ${opts.taxCents ? `<tr>
               <td style="padding:8px 0 0;font-size:14px;color:#8a6f5e">Sales tax</td>
               <td style="padding:8px 0 0;text-align:right;font-size:14px;color:#8a6f5e">${money(opts.taxCents)}</td>
@@ -278,27 +291,24 @@ function ownerEmailHtml(opts: {
 }
 
 async function sendEmail(opts: {
-  apiKey: string;
+  password: string;
   to: string;
   subject: string;
   html: string;
 }): Promise<void> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${opts.apiKey}`,
-    },
-    body: JSON.stringify({
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: GMAIL_USER, pass: opts.password },
+  });
+  try {
+    await transporter.sendMail({
       from: FROM_EMAIL,
-      to: [opts.to],
+      to: opts.to,
       subject: opts.subject,
       html: opts.html,
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error("Resend error:", body);
+    });
+  } catch (err) {
+    console.error("Gmail send error:", err);
     throw new Error("Failed to send email");
   }
 }
@@ -675,12 +685,12 @@ export const getOrderConfirmation = onCall({ maxInstances: 10 }, async (request)
 });
 
 export const onOrderCreated = onDocumentCreated(
-  { document: "orders/{orderId}", secrets: [resendApiKey] },
+  { document: "orders/{orderId}", secrets: [gmailAppPassword] },
   async (event) => {
     const data = event.data?.data();
     if (!data) return;
 
-    const apiKey = resendApiKey.value();
+    const password = gmailAppPassword.value().replace(/\s+/g, "");
     const pickupDate = (data["pickupDate"] as admin.firestore.Timestamp).toDate();
     const paymentMethod: string = data["paymentMethod"] ?? "pay_at_pickup";
 
@@ -697,6 +707,7 @@ export const onOrderCreated = onDocumentCreated(
     const customerPhone: string | undefined = data["customer"]?.["phone"] ?? undefined;
     const orderNumber: string = data["orderNumber"] ?? "";
     const totalCents: number = data["totalCents"] ?? 0;
+    const deliveryFeeCents: number = data["deliveryFeeCents"] ?? 0;
     const taxCents: number = data["taxCents"] ?? 0;
     const tipCents: number = data["tipCents"] ?? 0;
     const lines: CartLine[] = (data["items"] ?? []) as CartLine[];
@@ -707,11 +718,11 @@ export const onOrderCreated = onDocumentCreated(
     const deliveryTime: string | undefined = data["deliveryTime"] ?? undefined;
 
     // Customer confirmation — only if they opted in. Logged but non-fatal so a
-    // Resend sandbox rejection never blocks the owner notification.
+    // failed customer email never blocks the owner notification.
     if (data["wantsEmailConfirmation"] && customerEmail) {
       try {
         await sendEmail({
-          apiKey,
+          password,
           to: customerEmail,
           subject: `Your Chloe G's order ${orderNumber} is confirmed`,
           html: orderEmailHtml({
@@ -719,6 +730,7 @@ export const onOrderCreated = onDocumentCreated(
             orderNumber,
             lines,
             totalCents,
+            deliveryFeeCents,
             taxCents,
             tipCents,
             pickupDate,
@@ -736,31 +748,38 @@ export const onOrderCreated = onDocumentCreated(
       }
     }
 
-    // Owner notification — always send
+    // Owner notification — always attempted. A failure is logged rather than
+    // thrown: the order is already saved and paid, and a thrown error here only
+    // produces an unread function failure.
     if (ownerEmail) {
-      await sendEmail({
-        apiKey,
-        to: ownerEmail,
-        subject: `New order ${orderNumber}: ${customerName}${fulfillmentType === "delivery" ? " 🚗 DELIVERY" : ""}`,
-        html: ownerEmailHtml({
-          orderNumber,
-          customerName,
-          customerEmail,
-          customerPhone,
-          lines,
-          totalCents,
-          taxCents,
-          tipCents,
-          pickupDate,
-          paymentMethod,
-          paymentStatus: data["paymentStatus"] ?? "unpaid",
-          fulfillmentType,
-          deliveryAddress,
-          deliveryUnit,
-          deliveryTime,
-          specialRequests,
-        }),
-      });
+      try {
+        await sendEmail({
+          password,
+          to: ownerEmail,
+          subject: `New order ${orderNumber}: ${customerName}${fulfillmentType === "delivery" ? " 🚗 DELIVERY" : ""}`,
+          html: ownerEmailHtml({
+            orderNumber,
+            customerName,
+            customerEmail,
+            customerPhone,
+            lines,
+            totalCents,
+            deliveryFeeCents,
+            taxCents,
+            tipCents,
+            pickupDate,
+            paymentMethod,
+            paymentStatus: data["paymentStatus"] ?? "unpaid",
+            fulfillmentType,
+            deliveryAddress,
+            deliveryUnit,
+            deliveryTime,
+            specialRequests,
+          }),
+        });
+      } catch (err) {
+        console.error(`OWNER NOTIFICATION FAILED for order ${orderNumber}; check the GMAIL_APP_PASSWORD secret:`, err);
+      }
     }
   },
 );
