@@ -30,6 +30,32 @@ Things we want to do but have not started. Newest first within each section. Mov
 
 **Testing notes:** the Functions emulator does not fire schedules on its own, so keep the logic in a pure, unit-tested function and trigger the handler manually in the emulator.
 
+### Past orders tab (time-gate finished orders)
+
+**Today:** Picked Up and Cancelled orders stay in their tabs, and in "All", forever. The admin screen also loads *every* order ever placed through one live listener on the whole `orders` collection, so the list gets longer and the reads grow with history.
+
+**Options**
+- **A. UI only.** Add a **Past orders** tab. Picked Up / Cancelled orders whose pickup date is older than N days (e.g. 30) move there and drop out of "All". No data change and no scheduled job. It tidies the screen but does not reduce reads.
+- **B. A, plus stop loading everything.** The live list only queries recent orders (e.g. `pickupDate` within the last N days, or any order not yet finished). "Past orders" fetches older ones on demand, a page at a time. This is the one that keeps the admin fast as years of orders pile up.
+- **C. A `archived` flag set by a scheduled job.** Needs Cloud Scheduler (shared with the reminders work). Only worth it if we later want to query by it.
+
+**Decisions needed:** how many days; measure from the pickup date (we have it) or from when the order was marked picked up (we do not record that today); whether Cancelled orders move over immediately; searching past orders by name or order number.
+
+**Related: how long to keep customer details.** Orders hold names, emails, phone numbers and delivery addresses. Do not delete orders that are needed for tax and accounting records (ask Chloe's accountant how long to keep them). One option is to keep the totals but blank out the contact details after some months.
+
+### Simplify the order statuses (clean-up)
+
+**Why:** there are 6 statuses and 5 filter tabs, and some do not match how orders really flow now.
+- **Pending** is dead on the live site: a card is charged at checkout, so every real order is created as Confirmed and Paid. It is left over from the removed pay-at-pickup idea.
+- **Active** is not a status, only a tab that shows Confirmed + Baking.
+
+**Ideas**
+- Drop Pending (move any existing ones to Confirmed). Rename the tabs after what Chloe actually does, e.g. *To bake* (Confirmed + Baking), *Ready*, *Done*, *Cancelled*. Merge Confirmed and Baking if she does not use both.
+- **Cancelling an order does not refund it** (the admin screen only changes the status; refunds are done by hand in the Square Dashboard). Either remind her on cancel or issue the refund through the Square API.
+- Optional: email the customer when an order moves to Ready ("ready for pickup").
+
+**What it touches:** the `OrderStatus` type, `STATUS_NEXT` and the filters in `order-list.ts`, existing order documents, the emails, and tests.
+
 ## Open tasks before / around launch
 
 - **Real pickup address.** The live setting is "TBD" (Admin > Settings). Also replace the old `4804 John Garry Dr` address still hardcoded as a fallback in `functions/src/index.ts`, `src/app/data/seed-config.ts` and `seed.mjs`. Decide how much of a home address to show on the confirmation page and in emails.
