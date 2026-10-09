@@ -30,6 +30,62 @@ Things we want to do but have not started. Newest first within each section. Mov
 
 **Testing notes:** the Functions emulator does not fire schedules on its own, so keep the logic in a pure, unit-tested function and trigger the handler manually in the emulator.
 
+### Recommended first: protect the business once real orders arrive
+
+Suggested during a brainstorm on 2026-10-09. The first three protect against the problems that hurt most when orders start arriving; the next two make the paperwork easy. Nothing here is decided.
+
+#### Order limits per day
+
+**Problem:** there is a lead time and there are blackout dates, but no cap on how much Chloe can bake. Forty orders could land on one Saturday.
+
+**How it could work**
+- A capacity setting (per day overall, or per item per day) and a "sold out for that day" state. The date picker greys out full days.
+- **Enforced on the server**, not just the browser: `processPayment` must count what is already booked for that pickup date. Two customers checking out at the same moment must not both get the last slot, so the check needs a Firestore transaction or a per-day counter document, and capacity must be **reserved before the card is charged** and released if the payment fails or the order is cancelled or refunded.
+- The browser needs a public, personal-data-free view of remaining capacity (e.g. a small `dayCapacity/{YYYY-MM-DD}` document with counts only), since orders themselves are private.
+- Pickup and delivery might share or split the cap. Chloe needs a way to override or raise a day's limit in Admin > Settings.
+
+**Open questions:** what unit is capped (orders, packs, pieces, or per item); per day or per time slot; whether delivery is counted separately; how popup-stand items fit in (they are not sold online).
+
+#### Baking list for the admin
+
+**What:** an admin screen that totals everything due on a chosen day (default: the next pickup day), e.g. "Saturday: 6 x six-pack cookies, 4 x scones (3 maple, 1 cream cheese)". It excludes cancelled orders, splits pickup from delivery, shows total packs and pieces (`packQuantity` x `packCount`), breaks totals down by option (icing flavors), and lists who is collecting what and when. Printable.
+
+**Notes:** the same calculation is what Chloe's "2 days before" reminder digest needs (see the reminders item), so build it once as a pure, unit-tested function and use it for both. Orders already carry the item snapshots and chosen options it needs.
+
+**Open questions:** day only, or a whole week at a glance; what the print layout looks like.
+
+#### Alerts when something breaks, and backups
+
+**Problem:** failures today only appear in a log nobody reads. The worst cases are silent: a customer is charged but the order could not be saved (and the automatic refund also failed), an owner notification email fails, or the Gmail app password stops working.
+
+**What:**
+- **Alerts:** email Chloe and/or the developer when `processPayment`, the order emails, or the refund path fail. Options: a Cloud Monitoring alert on error-level logs (no code), or sending the alert email from inside the function. Possibly also an uptime check on the site.
+- **Backups:** scheduled Firestore backups (daily or weekly, with a retention period), and a test that a restore actually works. Orders and customer records are the business's records.
+
+**Open questions:** who gets the alerts; what counts as worth waking someone for; how long backups are kept (see the data-retention note under "Past orders").
+
+#### Sales and tax report
+
+**What:** an admin report for a date range (month or quarter) with sales (item subtotals), **sales tax collected**, delivery fees, tips, and a per-order table, exportable as CSV. It makes sales-tax filing much easier.
+
+**Notes**
+- Each order already stores `taxCents` and the `taxRatePercent` it was charged at, so a mid-period rate change does not corrupt the numbers.
+- Refunds are not recorded in the app today (they happen in the Square Dashboard), so the report would be wrong for refunded orders until the refund item below exists, or until it reconciles against Square's own export.
+- Use Central time for period boundaries.
+- Whether the delivery fee is taxable, and the filing period (monthly, quarterly, annual), need confirming with the Missouri Department of Revenue or Chloe's accountant (see the tax-rate task below).
+
+**Open questions:** which columns; whether tips are shown separately; whether to cross-check against Square.
+
+#### Refund from the admin screen
+
+**Today:** cancelling an order only changes its status. A paid order must be refunded by hand in the Square Dashboard. (Same issue as noted under "Simplify the order statuses".)
+
+**What:** a **Refund** (or "Cancel and refund") button that calls an admin-only Cloud Function. It checks the admin claim, calls the Square Refunds API using the order's stored `squarePaymentId`, records the result on the order (`refundedCents`, a refund id, and a `refunded` payment status), and marks the order cancelled. It uses an idempotency key so a double click can never refund twice. Optionally emails the customer that the order was cancelled and refunded.
+
+**Notes:** `paymentStatus` currently only knows `paid` and `unpaid`, so this adds new values, which touches the model, the admin badges and the sales report. Refunding a paid order should also release its capacity under "Order limits per day". Needs testing against the Square sandbox. The existing server-side auto-refund (used when an order fails to save) shows the pattern.
+
+**Open questions:** full refunds only, or partial; whether tips are refunded with it; whether the customer is emailed automatically.
+
 ### Popup-day sign-up list, with an email whenever a popup is scheduled
 
 **Idea (2026-10-09):** an option on the site to sign up for news about popup days. Whenever Chloe schedules a popup in the admin screen, everyone on the list gets an email about it.
