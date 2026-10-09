@@ -10,7 +10,7 @@
     "test": "ng test",
     "deploy": "cross-env FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy",
     "build:live": "cross-env APP_ENV=live node scripts/build.mjs",
-    "emulators": "npm --prefix functions run build && firebase emulators:start --import=.emulator-data --export-on-exit",
+    "emulators": "npm --prefix functions run build && cross-env FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase emulators:start --import=.emulator-data --export-on-exit",
     "seed:local": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node seed.mjs",
     "pull:prod": "node scripts/pull-prod-menu.mjs"
   },

@@ -65,6 +65,21 @@ Credentials come from developer.squareup.com > your application > **Production**
 4. Set the real sales tax in the admin Settings screen (`config/global.taxRatePercent`; default is 0%).
 5. `npm run deploy`, then place one small real order and refund it from the Square dashboard.
 
+## App Check (bot protection for payments)
+
+`processPayment` can require an App Check token, which proves a request came from this website and not a script (this blocks card-testing abuse). The site sends tokens automatically in live builds; the local emulators don't check them. Enforcement is controlled by `APP_CHECK_ENFORCE` in `functions/.env` and is **off by default**, so a deploy can never break checkout.
+
+One-time setup (Firebase console and Google reCAPTCHA, which only you can do):
+
+1. Create a **reCAPTCHA v3** key at https://www.google.com/recaptcha/admin for the site's domains (`chloe-gs-treats.web.app`, plus any custom domain). Keep the **site key** and **secret key**.
+2. Firebase console > **App Check** > Apps > register the web app, choose **reCAPTCHA**, paste the **secret key**.
+3. Put the **site key** in `src/environments/environment.production.ts` (`appCheckSiteKey`). The site key is public.
+4. `npm run deploy` (enforcement still off). Place a test order on the live site.
+5. Firebase console > App Check > APIs > Cloud Functions: confirm requests show as **verified**.
+6. Set `APP_CHECK_ENFORCE=true` in `functions/.env` and deploy again. Real orders now need a valid token.
+
+If checkout ever fails after step 6, set `APP_CHECK_ENFORCE=false` and redeploy to switch enforcement off again.
+
 ## Email
 
 Order emails go out through the bakery Gmail account via SMTP (`GMAIL_APP_PASSWORD` secret, a Google App Password; requires 2-Step Verification). To rotate it: `firebase functions:secrets:set GMAIL_APP_PASSWORD --data-file <file>`, delete the file, redeploy.

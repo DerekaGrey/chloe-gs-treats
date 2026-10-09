@@ -7,6 +7,8 @@ export const environment = {
   production: false,
   /** Sandbox build: talk ONLY to the local Firebase emulators, never the live project. */
   useEmulators: true,
+  /** Not used locally: the emulators do not check App Check. */
+  appCheckSiteKey: '',
   googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
     // SANDBOX credentials. Live values live in environment.production.ts.

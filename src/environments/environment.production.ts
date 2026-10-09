@@ -11,6 +11,8 @@
 export const environment = {
   production: true,
   useEmulators: false,
+  /** reCAPTCHA v3 SITE key (public) registered under Firebase console > App Check. */
+  appCheckSiteKey: 'REPLACE_ME',
   googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
     mode: 'production' as 'sandbox' | 'production',

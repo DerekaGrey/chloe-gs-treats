@@ -7,7 +7,7 @@ const problems = [];
 
 const envProd = readFileSync('src/environments/environment.production.ts', 'utf8');
 if (envProd.includes('REPLACE_ME')) {
-  problems.push('src/environments/environment.production.ts still contains REPLACE_ME (production Square applicationId / locationId).');
+  problems.push('src/environments/environment.production.ts still contains REPLACE_ME (production Square applicationId / locationId, or the App Check reCAPTCHA appCheckSiteKey).');
 }
 
 const fnEnv = readFileSync('functions/.env', 'utf8');

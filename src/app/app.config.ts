@@ -5,6 +5,7 @@ import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestor
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
@@ -26,6 +27,16 @@ if (environment.useEmulators) {
   connectAuthEmulator(getAuth(firebaseApp), 'http://localhost:9099', { disableWarnings: true });
   connectStorageEmulator(getStorage(firebaseApp), 'localhost', 9199);
   connectFunctionsEmulator(getFunctions(firebaseApp), 'localhost', 5001);
+}
+
+// App Check: attaches a reCAPTCHA-backed token to every callable request so the
+// payment function can reject traffic that did not come from this site. Not used
+// against the local emulators, which do not check it.
+if (!environment.useEmulators && environment.appCheckSiteKey) {
+  initializeAppCheck(firebaseApp, {
+    provider: new ReCaptchaV3Provider(environment.appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
 }
 
 export const appConfig: ApplicationConfig = {

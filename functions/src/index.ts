@@ -9,7 +9,7 @@
 // also pins @firebase/app as a belt-and-braces safeguard — leave both in place.
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { defineSecret, defineString } from "firebase-functions/params";
+import { defineBoolean, defineSecret, defineString } from "firebase-functions/params";
 import * as nodemailer from "nodemailer";
 import * as admin from "firebase-admin";
 
@@ -29,6 +29,12 @@ const FROM_EMAIL = `Chloe G's Homemade Treats <${GMAIL_USER}>`;
 // Defaults to sandbox so a missing value can never silently charge real cards.
 const squareEnv = defineString("SQUARE_ENV", { default: "sandbox" });
 const squareLocationId = defineString("SQUARE_LOCATION_ID");
+
+// App Check proves a payment request came from OUR website, not a script or bot
+// (blocks card-testing abuse). Off by default so a deploy can never break checkout
+// before the site is sending tokens; flip APP_CHECK_ENFORCE=true in functions/.env
+// once the Firebase console shows the traffic as verified (see README).
+const appCheckEnforce = defineBoolean("APP_CHECK_ENFORCE", { default: false });
 
 const squareBaseUrl = () =>
   squareEnv.value() === "production"
@@ -482,7 +488,7 @@ async function squareRefund(paymentId: string, amountCents: number, idempotencyK
 }
 
 export const processPayment = onCall(
-  { secrets: [squareAccessToken], maxInstances: 10 },
+  { secrets: [squareAccessToken], maxInstances: 10, enforceAppCheck: appCheckEnforce },
   async (request) => {
     const data = request.data as PaymentRequest;
 
