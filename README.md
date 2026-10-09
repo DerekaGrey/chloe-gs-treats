@@ -67,13 +67,13 @@ Credentials come from developer.squareup.com > your application > **Production**
 
 ## App Check (bot protection for payments)
 
-`processPayment` can require an App Check token, which proves a request came from this website and not a script (this blocks card-testing abuse). The site sends tokens automatically in live builds; the local emulators don't check them. Enforcement is controlled by `APP_CHECK_ENFORCE` in `functions/.env` and is **off by default**, so a deploy can never break checkout.
+`processPayment` can require an App Check token, which proves a request came from this website and not a script (this blocks card-testing abuse). The site sends reCAPTCHA Enterprise tokens automatically in live builds; the local emulators don't check them. Enforcement is controlled by `APP_CHECK_ENFORCE` in `functions/.env` and is **off by default**, so a deploy can never break checkout.
 
-One-time setup (Firebase console and Google reCAPTCHA, which only you can do):
+One-time setup (Google Cloud and Firebase consoles, which only you can do):
 
-1. Create a **reCAPTCHA v3** key at https://www.google.com/recaptcha/admin for the site's domains (`chloe-gs-treats.web.app`, plus any custom domain). Keep the **site key** and **secret key**.
-2. Firebase console > **App Check** > Apps > register the web app, choose **reCAPTCHA**, paste the **secret key**.
-3. Put the **site key** in `src/environments/environment.production.ts` (`appCheckSiteKey`). The site key is public.
+1. Google Cloud console > **Security > reCAPTCHA** (Fraud Defense) for project `chloe-gs-treats`: enable the **reCAPTCHA Enterprise API** if asked, then **Create key**: platform **Website**, domains `chloe-gs-treats.web.app` and `chloe-gs-treats.firebaseapp.com` (plus any custom domain), **score-based** (no checkbox challenge). Copy the **site key**.
+2. Firebase console > **App Check** > Apps > `chloe-gs-treats-web` > **Fraud Defense (reCAPTCHA Enterprise)**: paste the site key and save. (There is no secret key to paste.)
+3. Put the same **site key** in `src/environments/environment.production.ts` (`appCheckSiteKey`). It is public.
 4. `npm run deploy` (enforcement still off). Place a test order on the live site.
 5. Firebase console > App Check > APIs > Cloud Functions: confirm requests show as **verified**.
 6. Set `APP_CHECK_ENFORCE=true` in `functions/.env` and deploy again. Real orders now need a valid token.
