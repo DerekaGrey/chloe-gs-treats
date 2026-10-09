@@ -30,6 +30,25 @@ Things we want to do but have not started. Newest first within each section. Mov
 
 **Testing notes:** the Functions emulator does not fire schedules on its own, so keep the logic in a pure, unit-tested function and trigger the handler manually in the emulator.
 
+### Make it clear (and enforced) that delivery is only within Columbia, MO
+
+**Requested 2026-10-09:** let customers know, and stop them if needed, that Chloe only delivers within Columbia, Missouri.
+
+**Why soon:** today nothing prevents an out-of-area delivery order. The address box only *suggests* Columbia addresses (a location bias, not a restriction), and the server only checks that some delivery address was typed. A customer in another town could pay for delivery, and Chloe would have to cancel and refund it by hand (see the refund item below).
+
+**How it could work (both halves matter)**
+- **Tell people up front:** a short notice in the delivery section of checkout ("Delivery is available within Columbia, MO only"), and on the About / Schedule pages and any FAQ. Mention it in the order confirmation for delivery orders.
+- **Check the address in the browser:** restrict the address suggestions to Columbia and, when a suggestion is chosen, verify its details (city and state) before allowing payment. If it is outside the area, show a clear message and offer pickup instead.
+- **Check it again on the server, because the browser can be bypassed:** `processPayment` must refuse a delivery order whose address is outside the area, with a friendly error. A manually typed address (not chosen from the suggestions) still has to be checked, so the simplest robust rule is probably the ZIP code (and "Columbia, MO") against an allowed list, kept as a pure, unit-tested function shared in spirit with the browser, like the checkout totals parity test.
+- **Let Chloe change it without a deploy:** an editable "delivery area" (the allowed ZIP codes and/or city) in Admin > Settings, stored in `config/global`.
+- **Lighter fallback:** a required tick-box "My delivery address is in Columbia, MO". Easy, but it only asks politely; it does not stop anyone.
+
+**Edge cases to handle:** apartment and unit numbers; PO boxes (no delivery); ZIP codes that straddle the city limits and unincorporated Boone County (so a ZIP list can allow or refuse a few addresses wrongly); nearby towns Chloe might still want (Ashland, Rocheport); addresses typed without a ZIP.
+
+**Open questions (not decided yet):** the rule to use (city limits, a list of ZIP codes, or a distance from the pickup point); the exact ZIP list; whether to say "contact me" for nearby towns; the wording of the notice; whether out-of-area customers can still order for pickup; the delivery fee, which is a flat $5 today.
+
+**Related:** the delivery fee and slots live in `src/app/pages/checkout/checkout.ts` and `functions/src/pricing.ts`; the address suggestions use the Google Places key (see the custom-domain checklist).
+
 ### Recommended first: protect the business once real orders arrive
 
 Suggested during a brainstorm on 2026-10-09. The first three protect against the problems that hurt most when orders start arriving; the next two make the paperwork easy. Nothing here is decided.
