@@ -19,25 +19,20 @@ A browser built for one mode refuses to pay against a server in the other (`squa
 
 One-time setup:
 
-1. Install **Java 21+** (the Firestore emulator needs it): `winget install EclipseAdoptium.Temurin.21.JDK`, then open a new terminal.
+1. Install **Java 21+** (the Firestore emulator needs it): `winget install EclipseAdoptium.Temurin.21.JDK --source winget --accept-source-agreements --accept-package-agreements`, then open a new terminal.
 2. `npm install` and `npm --prefix functions install`.
 3. Create `functions/.secret.local` from `functions/.secret.local.example` and fill in the **sandbox** `SQUARE_ACCESS_TOKEN` (developer.squareup.com > your app > Sandbox). `GMAIL_APP_PASSWORD` is optional; without it local order emails just fail (logged).
 4. `functions/.env.local` is already provided (see `.env.local.example`); it forces sandbox mode in the emulator.
 
-Each session, in two terminals:
+Each session, one command:
 
 ```
-npm run emulators     # Firestore, Auth, Storage, Functions + UI at http://localhost:4000
-npm start             # the site at http://localhost:4200 (sandbox build)
+npm run local
 ```
 
-First run only, with the emulators running, seed test data and a local admin login:
+It finds Java, starts the emulators, seeds test data only if the local database is empty, and starts the site at http://localhost:4200 (emulator UI at http://localhost:4000, local admin `admin@local.test` / `localadmin123`). Ctrl+C stops everything and saves the emulator data. In Claude Code you can also type `/local`.
 
-```
-npm run seed:local    # menu, events, config; admin@local.test / localadmin123
-```
-
-Emulator data is saved to `.emulator-data/` (git-ignored) on exit, so you only seed once.
+The pieces, if you want them separately: `npm run emulators`, `npm start`, `npm run seed:local`.
 
 Square sandbox test card: `4111 1111 1111 1111`, any future expiry, any CVV and ZIP.
 
