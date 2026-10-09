@@ -11,6 +11,15 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineBoolean, defineSecret, defineString } from "firebase-functions/params";
 import * as nodemailer from "nodemailer";
+import {
+  MAX_CART_LINES,
+  PricingError,
+  computeTotals,
+  isPickupDateAllowed,
+  parseLeadDays,
+  priceCart,
+  type CartLineRequest,
+} from "./pricing.js";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -325,13 +334,6 @@ async function sendEmail(opts: {
   }
 }
 
-interface CartLineRequest {
-  menuItemId: string;
-  packLabel: string;
-  packCount: number;
-  selectedOptions?: { groupName: string; optionLabel: string }[];
-}
-
 interface PaymentRequest {
   sourceId: string;
   /** Client-generated UUID, one per checkout attempt. Doubles as the order doc ID. */
@@ -352,12 +354,6 @@ interface PaymentRequest {
   cartLines: CartLineRequest[];
 }
 
-// Must match DELIVERY_FEE_CENTS and MAX_TIP_CENTS in checkout.ts, otherwise the
-// total shown to the customer would differ from the amount charged.
-const DELIVERY_FEE_CENTS = 500;
-const MAX_TIP_CENTS = 100_000;
-const MAX_PACKS_PER_LINE = 100;
-const MAX_CART_LINES = 50;
 const TIMEZONE = "America/Chicago";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -370,97 +366,6 @@ function str(v: unknown, max: number): string {
 /** Today's date in the bakery's timezone as YYYY-MM-DD. */
 function todayInBakeryTz(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-}
-
-function addDays(ymd: string, days: number): string {
-  const d = new Date(`${ymd}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Prices every line from Firestore. The client only says WHICH item, pack and
- * options it wants; any price, name or total it sends is ignored.
- */
-async function priceCart(
-  db: admin.firestore.Firestore,
-  requested: CartLineRequest[],
-): Promise<CartLine[]> {
-  const lines: CartLine[] = [];
-
-  for (const req of requested) {
-    const packCount = Number(req?.packCount);
-    if (
-      typeof req?.menuItemId !== "string" || !req.menuItemId || req.menuItemId.includes("/") ||
-      !Number.isInteger(packCount) || packCount < 1 || packCount > MAX_PACKS_PER_LINE
-    ) {
-      throw new HttpsError("invalid-argument", "Invalid cart.");
-    }
-
-    const snap = await db.doc(`menuItems/${req.menuItemId}`).get();
-    const item = snap.data();
-    if (!snap.exists || !item || item["available"] === false) {
-      throw new HttpsError(
-        "failed-precondition",
-        "An item in your cart is no longer available. Please refresh and review your cart.",
-      );
-    }
-
-    const pack = ((item["packPricing"] ?? []) as { label: string; quantity: number; priceCents: number }[])
-      .find((p) => p.label === req.packLabel);
-    if (!pack) {
-      throw new HttpsError(
-        "failed-precondition",
-        "An item in your cart has changed. Please refresh and review your cart.",
-      );
-    }
-
-    // Each option group allows one choice; required groups must have one.
-    const groups = (item["optionGroups"] ?? []) as {
-      name: string;
-      required: boolean;
-      options: { label: string; priceCentsDelta: number }[];
-    }[];
-    const chosen = req.selectedOptions ?? [];
-    if (!Array.isArray(chosen)) throw new HttpsError("invalid-argument", "Invalid cart.");
-
-    const selectedOptions: { groupName: string; optionLabel: string; priceCentsDelta: number }[] = [];
-    for (const group of groups) {
-      const picks = chosen.filter((c) => c?.groupName === group.name);
-      if (picks.length > 1 || (group.required && picks.length === 0)) {
-        throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
-      }
-      if (picks.length === 1) {
-        const opt = group.options.find((o) => o.label === picks[0].optionLabel);
-        if (!opt) {
-          throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
-        }
-        selectedOptions.push({
-          groupName: group.name,
-          optionLabel: opt.label,
-          priceCentsDelta: opt.priceCentsDelta ?? 0,
-        });
-      }
-    }
-    // Anything chosen that matched no group means the cart is stale or tampered.
-    if (chosen.length !== selectedOptions.length) {
-      throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
-    }
-
-    const optionDelta = selectedOptions.reduce((s, o) => s + o.priceCentsDelta, 0);
-    lines.push({
-      menuItemId: req.menuItemId,
-      nameSnapshot: String(item["name"]),
-      packLabelSnapshot: pack.label,
-      packQuantity: pack.quantity,
-      packPriceCentsSnapshot: pack.priceCents,
-      packCount,
-      selectedOptions,
-      lineTotalCents: packCount * (pack.priceCents + optionDelta),
-    });
-  }
-
-  return lines;
 }
 
 async function squareRefund(paymentId: string, amountCents: number, idempotencyKey: string): Promise<boolean> {
@@ -547,11 +452,10 @@ export const processPayment = onCall(
       throw new HttpsError("invalid-argument", "Invalid pickup date.");
     }
     const pickupYmd = new Date(pickupMs).toISOString().slice(0, 10);
-    const rawLead = Number(config["defaultLeadTimeDays"] ?? 3);
-    const leadDays = Number.isFinite(rawLead) ? rawLead : 3;
+    const leadDays = parseLeadDays(config["defaultLeadTimeDays"]);
     const blackouts = ((config["blackoutDates"] ?? []) as admin.firestore.Timestamp[])
       .map((t) => t.toDate().toISOString().slice(0, 10));
-    if (pickupYmd < addDays(todayInBakeryTz(), leadDays) || blackouts.includes(pickupYmd)) {
+    if (!isPickupDateAllowed({ pickupYmd, todayYmd: todayInBakeryTz(), leadDays, blackoutYmds: blackouts })) {
       throw new HttpsError(
         "failed-precondition",
         "That date is no longer available. Please choose another date.",
@@ -559,25 +463,31 @@ export const processPayment = onCall(
     }
 
     // Every price comes from Firestore, never from the client.
-    const lines = await priceCart(db, data.cartLines);
+    let lines;
+    try {
+      lines = await priceCart(async (id) => {
+        const snap = await db.doc(`menuItems/${id}`).get();
+        return snap.exists ? snap.data() : undefined;
+      }, data.cartLines);
+    } catch (e) {
+      if (e instanceof PricingError) throw new HttpsError(e.code, e.message);
+      throw e;
+    }
     const subtotalCents = lines.reduce((sum, l) => sum + l.lineTotalCents, 0);
-    const deliveryFeeCents = fulfillmentType === "delivery" ? DELIVERY_FEE_CENTS : 0;
 
-    // Tax applies to the food only: not the delivery fee, and never the tip.
-    const rawRate = Number(config["taxRatePercent"] ?? 0);
-    const taxRatePercent = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0;
-    const taxCents = Math.round((subtotalCents * taxRatePercent) / 100);
-
-    // The tip is the customer's choice so it cannot be recomputed server-side,
-    // but it is sanitised: non-numbers rejected, floored at zero so a negative
-    // value can never reduce the charge. The ceiling is a flat amount so a
-    // generous tip on a small order is never silently clamped.
-    const rawTip = Number(data.tipCents ?? 0);
-    const tipCents = Number.isFinite(rawTip)
-      ? Math.min(Math.max(Math.round(rawTip), 0), MAX_TIP_CENTS)
-      : 0;
-
-    const totalCents = subtotalCents + taxCents + deliveryFeeCents + tipCents;
+    // Tax, delivery fee, tip and total: see computeTotals in pricing.ts.
+    const {
+      deliveryFeeCents,
+      taxRatePercent,
+      taxCents,
+      tipCents,
+      totalCents,
+    } = computeTotals({
+      subtotalCents,
+      fulfillmentType,
+      taxRatePercent: config["taxRatePercent"],
+      tipCents: data.tipCents,
+    });
 
     // The browser already showed the customer a total. If its figure disagrees
     // with ours (menu price edited, tax rate changed mid-session), fail loudly

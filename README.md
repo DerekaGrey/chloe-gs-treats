@@ -38,6 +38,19 @@ The first time (empty local database) it also copies the **real menu, events and
 
 Square sandbox test card: `4111 1111 1111 1111`, any future expiry, any CVV and ZIP.
 
+## Tests
+
+```
+npm run test:all       # everything below
+npm test               # app tests (Angular + Vitest, watch mode)
+npm run test:functions # server pricing tests
+```
+
+- `functions/src/pricing.ts` holds the pure price, tax, tip, delivery-fee and pickup-date rules that `processPayment` uses; `pricing.spec.ts` tests them. Keep money logic there, not inline in `index.ts`, so it stays testable.
+- `src/app/services/cart.service.spec.ts` tests the cart totals the customer sees; `app.spec.ts` tests the app shell with Firebase faked out (unit tests have no Firebase app).
+- `DELIVERY_FEE_CENTS` and `MAX_TIP_CENTS` exist in both `pricing.ts` and `checkout.ts`. `pricing.spec.ts` pins their values, so changing one fails a test and reminds you to change the other.
+- Not covered by unit tests: the checkout page itself, the admin screens, and the Square/Firestore calls inside `processPayment` (run the emulators and place a sandbox order for those).
+
 ## Git workflow
 
 - `main` is production. Only deploy from `main`.
