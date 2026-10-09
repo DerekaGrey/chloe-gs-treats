@@ -154,6 +154,14 @@ Suggested during a brainstorm on 2026-10-09. The first three protect against the
 
 ## Open tasks before / around launch
 
+- **Custom domain (optional, recommended before printing or announcing widely).** The site runs fine on `chloe-gs-treats.web.app`; payments only need HTTPS, so this is not a blocker. A domain like `chloegstreats.com` (about $12 a year) looks more established, is easier to say and print, and is needed later for a verified sending domain if email outgrows Gmail (see the popup sign-up list). Buy it before any signs, flyers or QR codes are printed. Firebase Hosting connects custom domains with free certificates, and the old `web.app` address keeps working (it can be set to redirect). Checklist when adding one:
+  - Connect the domain in Firebase Hosting and add the DNS records it gives you.
+  - Add the new domain to the **App Check reCAPTCHA key** (Google Cloud reCAPTCHA console), or App Check tokens will fail on the new domain.
+  - Add it to the **Google Maps/Places API key** referrer restrictions, if that key is restricted to specific websites (not verified from the code).
+  - Add it to the **Firebase Authentication authorized domains**.
+  - Square card payments need nothing extra.
+  - Update the README, the emails and anything that mentions the old address.
+
 - **Real pickup address.** The live setting is "TBD" (Admin > Settings). Also replace the old `4804 John Garry Dr` address still hardcoded as a fallback in `functions/src/index.ts`, `src/app/data/seed-config.ts` and `seed.mjs`. Decide how much of a home address to show on the confirmation page and in emails.
 - **Sales tax rate: decided to keep 8.5%** (2026-10-09, the owners' call). It has not been independently confirmed with the Missouri DOR or an accountant: Columbia's standard combined rate is listed as 7.975% (up to 8.475% in some districts), and whether baked goods are reduced-rate depends on DOR rules (amended 2026). Worth a check at some point. Chloe must also be registered for Missouri sales tax and file returns. Still open: whether the $5 delivery fee is taxable, and the filing period.
 - **App Check enforcement.** App Check tokens are attached by the site, enforcement of the payment function is `APP_CHECK_ENFORCE=false` in `functions/.env`. Enforcement was also turned on somewhere in the Firebase console on 2026-10-09 (exactly where is unknown). Verify in the console that requests show as verified, check the menu, photos, admin login and one real order after relaunch, then decide what to keep enforced.
