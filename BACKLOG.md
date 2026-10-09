@@ -30,6 +30,25 @@ Things we want to do but have not started. Newest first within each section. Mov
 
 **Testing notes:** the Functions emulator does not fire schedules on its own, so keep the logic in a pure, unit-tested function and trigger the handler manually in the emulator.
 
+### Thank-you email after an order is picked up
+
+**Idea (2026-10-09):** when Chloe marks an order **Picked Up** in the admin screen, email the customer a short thank-you from Chloe G's.
+
+**Why it is probably not too spammy:** a customer would get about three emails per order in total (confirmation, the planned 1-day reminder, and this thank-you), each at a different, useful moment. A single thank-you after the order is done is a normal, welcome touch. It stays welcome if it is short, personal and sent once.
+
+**Things to get right**
+- **Send once.** Mark the order (`thanksSentAt`) so toggling the status back and forth, or a retry, cannot email twice.
+- **Only to buyers who agreed to emails.** Today the checkout box says "email me a confirmation". Reminders and a thank-you go beyond a confirmation, so the box wording should change to something like "Email me updates about my order". Orders placed before the wording change should keep their original scope.
+- **Keep it a thank-you, not marketing.** A purely thank-you / order-complete message is transactional. If it starts to carry promotions (new flavors, upcoming popups, discounts), it becomes marketing email, which brings stricter rules (clear sender identity, an unsubscribe option). A light "see what's on the menu" link is fine, but check before adding promotions.
+- **Timing.** Emailing the instant she taps the button, while the customer may still be standing there, can feel odd. Sending a few hours later or the next morning is nicer, but needs the scheduler (shared with the reminders work).
+- **Mistakes.** If she marks the wrong order Picked Up, the email is already out. A short delay (or a confirm prompt in the admin) reduces that.
+- **Not for cancelled orders.** Only the Picked Up transition triggers it.
+- **Make it useful:** reply goes to Chloe's Gmail (it already sends from her account), and it could invite a review or feedback and link to the menu for reordering.
+
+**Technically:** a Firestore trigger on order updates (`onDocumentUpdated`) that fires when the status changes to `pickedup`, plus the sent-marker above. Reuse `sendEmail`.
+
+**Open questions (not decided yet):** send immediately or delayed; include a review/feedback link; wording of the opt-in box; who the email is signed by.
+
 ### Past orders tab (time-gate finished orders)
 
 **Today:** Picked Up and Cancelled orders stay in their tabs, and in "All", forever. The admin screen also loads *every* order ever placed through one live listener on the whole `orders` collection, so the list gets longer and the reads grow with history.
