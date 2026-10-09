@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
@@ -42,6 +42,8 @@ if (!environment.useEmulators && environment.appCheckSiteKey) {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // Browser Back/Forward returns to the previous scroll position; a new page still
+    // starts at the top.
+    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })),
   ],
 };

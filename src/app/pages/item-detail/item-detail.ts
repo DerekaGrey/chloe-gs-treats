@@ -4,11 +4,12 @@ import { MenuService } from '../../services/menu.service';
 import { CartService } from '../../services/cart.service';
 import { ConfigService } from '../../services/config.service';
 import { CentsPipe } from '../../shared/cents.pipe';
+import { BackLinkDirective } from '../../shared/back-link.directive';
 import { ItemOption, MenuItem, OptionGroup, PackTier, SelectedOption } from '../../models';
 
 @Component({
   selector: 'app-item-detail',
-  imports: [RouterLink, CentsPipe],
+  imports: [RouterLink, CentsPipe, BackLinkDirective],
   templateUrl: './item-detail.html',
   styleUrl: './item-detail.scss',
 })

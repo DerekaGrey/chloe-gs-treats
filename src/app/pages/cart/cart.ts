@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../services/cart.service';
 import { CentsPipe } from '../../shared/cents.pipe';
+import { BackLinkDirective } from '../../shared/back-link.directive';
 import { CartLine } from '../../models';
 
 @Component({
   selector: 'app-cart',
-  imports: [RouterLink, CentsPipe],
+  imports: [RouterLink, CentsPipe, BackLinkDirective],
   templateUrl: './cart.html',
   styleUrl: './cart.scss',
 })
