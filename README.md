@@ -34,6 +34,8 @@ It finds Java, starts the emulators, seeds test data only if the local database 
 
 The pieces, if you want them separately: `npm run emulators`, `npm start`, `npm run seed:local`.
 
+The first time (empty local database) it also copies the **real menu, events and settings from production** so local shows the same items, prices and photos. That is read-only from production and never copies orders or customers. Refresh it any time, e.g. after Chloe edits the menu, with `npm run pull:prod` while the emulators are running.
+
 Square sandbox test card: `4111 1111 1111 1111`, any future expiry, any CVV and ZIP.
 
 ## Git workflow

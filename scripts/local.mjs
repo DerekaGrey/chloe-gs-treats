@@ -121,6 +121,12 @@ async function main() {
       console.error('\n[local] seeding failed.');
       shutdown(1);
     }
+
+    // Then replace the placeholder menu with the real one (read-only from production).
+    // Non-fatal: offline, the seeded test menu is kept.
+    console.log('\n[local] copying the real menu from production...\n');
+    const pull = spawnSync('npm', ['run', 'pull:prod'], { stdio: 'inherit', shell: true });
+    if (pull.status !== 0) console.warn('[local] could not copy the production menu; using the seeded test menu.');
   } else {
     console.log('\n[local] local data already present, skipping seed.');
   }
