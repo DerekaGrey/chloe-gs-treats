@@ -20,6 +20,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { CartService } from '../../services/cart.service';
 import { ConfigService } from '../../services/config.service';
 import { CentsPipe } from '../../shared/cents.pipe';
+import {
+  DELIVERY_FEE_CENTS,
+  TIP_PERCENTS,
+  TipChoice,
+  computeCheckoutTotals,
+  tipCentsFor,
+} from '../../shared/checkout-totals';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -69,16 +76,6 @@ declare const Square: {
   }>;
 };
 
-const DELIVERY_FEE_CENTS = 500;
-
-// Tips are calculated on the subtotal only. The delivery fee already covers
-// the trip, so tipping on top of it would be double-charging for the same thing.
-const TIP_PERCENTS = [15, 18, 20];
-
-// Sanity ceiling on a custom tip. Must match the cap in processPayment,
-// otherwise the total shown here would not be the amount actually charged.
-const MAX_TIP_CENTS = 100_000;
-
 const WEEKDAY_SLOTS = [
   '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
 ];
@@ -123,43 +120,38 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
 
   readonly TIP_PERCENTS = TIP_PERCENTS;
   /** Selected preset, or 'custom'. null means no tip. */
-  readonly tipChoice = signal<number | 'custom' | null>(null);
+  readonly tipChoice = signal<TipChoice>(null);
   readonly customTipDollars = signal('');
 
-  readonly tipCents = computed(() => {
-    const choice = this.tipChoice();
-    if (choice === null) return 0;
-    if (choice === 'custom') {
-      const dollars = parseFloat(this.customTipDollars());
-      if (!isFinite(dollars) || dollars <= 0) return 0;
-      return Math.min(Math.round(dollars * 100), MAX_TIP_CENTS);
-    }
-    return Math.round((this.subtotalCents() * choice) / 100);
-  });
-
-  readonly deliveryFeeCents = computed(() =>
-    this.fulfillmentType() === 'delivery' ? DELIVERY_FEE_CENTS : 0
+  /** Tax, delivery fee, tip and total in one place: see shared/checkout-totals.ts. */
+  readonly totals = computed(() =>
+    computeCheckoutTotals({
+      subtotalCents: this.subtotalCents(),
+      fulfillmentType: this.fulfillmentType(),
+      taxRatePercent: this.cfg().taxRatePercent,
+      tipChoice: this.tipChoice(),
+      customTipDollars: this.customTipDollars(),
+    }),
   );
+
+  readonly tipCents = computed(() => this.totals().tipCents);
+  readonly deliveryFeeCents = computed(() => this.totals().deliveryFeeCents);
 
   /**
    * Tax on the food only. processPayment recomputes this from Firestore and
-   * rejects the charge if the two disagree, so this must use the same base and
-   * rounding: subtotal only, excluding the delivery fee and the tip.
+   * rejects the charge if the two disagree (checkout-parity.spec.ts keeps the
+   * rules identical).
    */
-  readonly taxCents = computed(() =>
-    Math.round((this.subtotalCents() * this.cfg().taxRatePercent) / 100)
-  );
+  readonly taxCents = computed(() => this.totals().taxCents);
 
-  readonly totalCents = computed(() =>
-    this.subtotalCents() + this.taxCents() + this.deliveryFeeCents() + this.tipCents()
-  );
+  readonly totalCents = computed(() => this.totals().totalCents);
 
   /** Dollar preview shown under each preset button. */
   tipPreviewCents(percent: number): number {
-    return Math.round((this.subtotalCents() * percent) / 100);
+    return tipCentsFor(this.subtotalCents(), percent, '');
   }
 
-  setTipChoice(choice: number | 'custom' | null): void {
+  setTipChoice(choice: TipChoice): void {
     this.tipChoice.set(choice);
     if (choice !== 'custom') this.customTipDollars.set('');
   }

@@ -15,8 +15,9 @@ export class PricingError extends Error {
 }
 
 // DELIVERY_FEE_CENTS and MAX_TIP_CENTS must match the same-named constants in
-// src/app/pages/checkout/checkout.ts, otherwise the total shown to the customer
-// would differ from the amount charged. pricing.spec.ts pins both values.
+// src/app/shared/checkout-totals.ts (the browser's copy), otherwise the total shown
+// to the customer would differ from the amount charged. This folder is deployed on
+// its own so it cannot import that file; checkout-parity.spec.ts fails if they drift.
 export const DELIVERY_FEE_CENTS = 500;
 export const MAX_TIP_CENTS = 100_000;
 export const MAX_PACKS_PER_LINE = 100;

@@ -300,10 +300,10 @@ describe("computeTotals", () => {
     expect(t.totalCents).toBe(7650 + 650 + 500 + 300);
   });
 
-  // These two values are duplicated in src/app/pages/checkout/checkout.ts. If you
-  // change one, change both, then update this test: otherwise the total the
-  // customer sees would differ from the amount charged.
-  it("pins the delivery fee and tip ceiling that checkout.ts also hardcodes", () => {
+  // These two values are duplicated in src/app/shared/checkout-totals.ts.
+  // checkout-parity.spec.ts fails if the two copies disagree; this test also pins the
+  // current values so an intentional change is a deliberate, reviewed edit.
+  it("pins the delivery fee and tip ceiling that the browser also uses", () => {
     expect(DELIVERY_FEE_CENTS).toBe(500);
     expect(MAX_TIP_CENTS).toBe(100_000);
   });

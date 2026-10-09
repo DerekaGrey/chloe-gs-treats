@@ -48,8 +48,8 @@ npm run test:functions # server pricing tests
 
 - `functions/src/pricing.ts` holds the pure price, tax, tip, delivery-fee and pickup-date rules that `processPayment` uses; `pricing.spec.ts` tests them. Keep money logic there, not inline in `index.ts`, so it stays testable.
 - `src/app/services/cart.service.spec.ts` tests the cart totals the customer sees; `app.spec.ts` tests the app shell with Firebase faked out (unit tests have no Firebase app).
-- `DELIVERY_FEE_CENTS` and `MAX_TIP_CENTS` exist in both `pricing.ts` and `checkout.ts`. `pricing.spec.ts` pins their values, so changing one fails a test and reminds you to change the other.
-- Not covered by unit tests: the checkout page itself, the admin screens, and the Square/Firestore calls inside `processPayment` (run the emulators and place a sandbox order for those).
+- The totals the customer sees (tax, delivery fee, tip, total) are computed in `src/app/shared/checkout-totals.ts` and must equal what `processPayment` recomputes, or every checkout fails with "Prices have changed". `functions/src/checkout-parity.spec.ts` compares the two over thousands of combinations, so a drift fails a test. The functions folder is deployed on its own, so the delivery fee and tip ceiling are defined in both places on purpose.
+- Not covered by unit tests: the checkout page UI, the admin screens, and the Square/Firestore calls inside `processPayment` (run the emulators and place a sandbox order for those).
 
 ## Git workflow
 
