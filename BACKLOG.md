@@ -155,7 +155,7 @@ Suggested during a brainstorm on 2026-10-09. The first three protect against the
 ## Open tasks before / around launch
 
 - **Real pickup address.** The live setting is "TBD" (Admin > Settings). Also replace the old `4804 John Garry Dr` address still hardcoded as a fallback in `functions/src/index.ts`, `src/app/data/seed-config.ts` and `seed.mjs`. Decide how much of a home address to show on the confirmation page and in emails.
-- **Confirm the sales tax rate.** Production is 8.5% and unconfirmed; Columbia's standard combined rate is listed as 7.975% (up to 8.475% in some districts), and whether baked goods are reduced-rate depends on Missouri DOR rules (amended 2026). Chloe or her accountant must confirm; she must also be registered for Missouri sales tax.
+- **Sales tax rate: decided to keep 8.5%** (2026-10-09, the owners' call). It has not been independently confirmed with the Missouri DOR or an accountant: Columbia's standard combined rate is listed as 7.975% (up to 8.475% in some districts), and whether baked goods are reduced-rate depends on DOR rules (amended 2026). Worth a check at some point. Chloe must also be registered for Missouri sales tax and file returns. Still open: whether the $5 delivery fee is taxable, and the filing period.
 - **App Check enforcement.** App Check tokens are attached by the site, enforcement of the payment function is `APP_CHECK_ENFORCE=false` in `functions/.env`. Enforcement was also turned on somewhere in the Firebase console on 2026-10-09 (exactly where is unknown). Verify in the console that requests show as verified, check the menu, photos, admin login and one real order after relaunch, then decide what to keep enforced.
 
 ## Ideas and deferred improvements
