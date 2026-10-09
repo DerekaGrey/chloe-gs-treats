@@ -20,6 +20,8 @@ import {
   priceCart,
   type CartLineRequest,
 } from "./pricing.js";
+import { saveOrderOrRefund } from "./order-write.js";
+import { isValidEmail, singleLine } from "./validation.js";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -357,7 +359,6 @@ interface PaymentRequest {
 const TIMEZONE = "America/Chicago";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function str(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -397,7 +398,7 @@ export const processPayment = onCall(
   async (request) => {
     const data = request.data as PaymentRequest;
 
-    const name = str(data?.customer?.name, 100);
+    const name = singleLine(str(data?.customer?.name, 100));
     const email = str(data?.customer?.email, 200);
     const phone = str(data?.customer?.phone, 40);
     const fulfillmentType = data?.fulfillmentType;
@@ -405,7 +406,7 @@ export const processPayment = onCall(
     if (
       typeof data?.sourceId !== "string" || !data.sourceId ||
       typeof data?.idempotencyKey !== "string" || !UUID_RE.test(data.idempotencyKey) ||
-      !name || !phone || !EMAIL_RE.test(email) ||
+      !name || !phone || !isValidEmail(email) ||
       (fulfillmentType !== "pickup" && fulfillmentType !== "delivery") ||
       !Array.isArray(data.cartLines) ||
       data.cartLines.length === 0 ||
@@ -540,8 +541,7 @@ export const processPayment = onCall(
     // Create the Firestore order now that payment succeeded. If this fails the
     // customer has been charged for an order we cannot see, so refund them.
     const orderNumber = `CG-${Math.floor(100000 + Math.random() * 900000)}`;
-    try {
-      await orderRef.create({
+    const orderFields = {
         orderNumber,
         customer: { name, email, phone },
         isGuest: true,
@@ -564,13 +564,22 @@ export const processPayment = onCall(
         squarePaymentId,
         wantsEmailConfirmation: !!data.wantsEmailConfirmation,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      console.error("Order write failed after successful charge:", e, { squarePaymentId, totalCents });
-      const refunded = await squareRefund(squarePaymentId, totalCents, data.idempotencyKey);
+    };
+    const outcome = await saveOrderOrRefund({
+      create: () => orderRef.create(orderFields),
+      loadExistingOrderNumber: async () =>
+        (await orderRef.get()).data()?.["orderNumber"] as string | undefined,
+      refund: () => squareRefund(squarePaymentId, totalCents, data.idempotencyKey),
+      log: (e) => console.error("Order write failed after successful charge:", e, { squarePaymentId, totalCents }),
+    });
+    if (outcome.kind === "duplicate") {
+      // A concurrent request with the same idempotency key already saved this order.
+      return { orderId: orderRef.id, orderNumber: outcome.orderNumber ?? orderNumber };
+    }
+    if (outcome.kind === "failed") {
       throw new HttpsError(
         "internal",
-        refunded
+        outcome.refunded
           ? "We couldn't save your order, and your card has been refunded. Please try again."
           : "We couldn't save your order. Please contact us before trying again; you may have been charged.",
       );

@@ -2,6 +2,8 @@
 // everything here is a plain function so it can be unit tested (see pricing.spec.ts).
 // index.ts maps PricingError to HttpsError at the edge.
 
+import { isValidMenuItemId } from "./validation.js";
+
 export type PricingErrorCode = "invalid-argument" | "failed-precondition";
 
 export class PricingError extends Error {
@@ -56,7 +58,7 @@ export async function priceCart(lookup: ItemLookup, requested: CartLineRequest[]
   for (const req of requested) {
     const packCount = Number(req?.packCount);
     if (
-      typeof req?.menuItemId !== "string" || !req.menuItemId || req.menuItemId.includes("/") ||
+      !isValidMenuItemId(req?.menuItemId) ||
       !Number.isInteger(packCount) || packCount < 1 || packCount > MAX_PACKS_PER_LINE
     ) {
       throw new PricingError("invalid-argument", "Invalid cart.");

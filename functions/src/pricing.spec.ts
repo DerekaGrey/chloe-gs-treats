@@ -223,7 +223,7 @@ describe("priceCart", () => {
       expect(line.lineTotalCents).toBe(1000 * MAX_PACKS_PER_LINE);
     });
 
-    it.each(["", "a/b", "../config/global", 42, null])("menu item id %j", async (menuItemId) => {
+    it.each(["", ".", "..", "a/b", "../config/global", "a".repeat(65), 42, null])("menu item id %j", async (menuItemId) => {
       const e = await bad({ menuItemId });
       expect(e.code).toBe("invalid-argument");
     });
