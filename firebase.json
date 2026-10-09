@@ -5,6 +5,9 @@
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "predeploy": ["npm run build"]
   },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "storage": {
     "rules": "storage.rules"
   },

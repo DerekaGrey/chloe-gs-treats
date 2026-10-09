@@ -10,7 +10,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
-import { randomUUID } from "crypto";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -26,6 +25,7 @@ const FROM_EMAIL = "Chloe G's Homemade Treats <onboarding@resend.dev>";
 // Sandbox base URL — change to https://connect.squareup.com when going live
 const SQUARE_BASE_URL = "https://connect.squareupsandbox.com";
 const LOCATION_ID = "LZDNJQW0XEQV1";
+const SQUARE_VERSION = "2025-07-16";
 
 interface CartLine {
   nameSnapshot: string;
@@ -303,20 +303,164 @@ async function sendEmail(opts: {
   }
 }
 
+interface CartLineRequest {
+  menuItemId: string;
+  packLabel: string;
+  packCount: number;
+  selectedOptions?: { groupName: string; optionLabel: string }[];
+}
+
 interface PaymentRequest {
   sourceId: string;
+  /** Client-generated UUID, one per checkout attempt. Doubles as the order doc ID. */
+  idempotencyKey: string;
   customer: { name: string; email: string; phone: string };
   pickupDate: string;
   fulfillmentType: 'pickup' | 'delivery';
   deliveryAddress?: string;
   deliveryUnit?: string;
   deliveryTime?: string;
-  deliveryFeeCents: number;
-  taxCents?: number;
+  /** The total the customer saw. Must equal the server-computed total. */
+  expectedTotalCents: number;
   tipCents?: number;
   specialRequests?: string;
   wantsEmailConfirmation: boolean;
-  cartLines: CartLine[];
+  cartLines: CartLineRequest[];
+}
+
+// Must match DELIVERY_FEE_CENTS and MAX_TIP_CENTS in checkout.ts, otherwise the
+// total shown to the customer would differ from the amount charged.
+const DELIVERY_FEE_CENTS = 500;
+const MAX_TIP_CENTS = 100_000;
+const MAX_PACKS_PER_LINE = 100;
+const MAX_CART_LINES = 50;
+const TIMEZONE = "America/Chicago";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function str(v: unknown, max: number): string {
+  return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+/** Today's date in the bakery's timezone as YYYY-MM-DD. */
+function todayInBakeryTz(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+}
+
+function addDays(ymd: string, days: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Prices every line from Firestore. The client only says WHICH item, pack and
+ * options it wants; any price, name or total it sends is ignored.
+ */
+async function priceCart(
+  db: admin.firestore.Firestore,
+  requested: CartLineRequest[],
+): Promise<CartLine[]> {
+  const lines: CartLine[] = [];
+
+  for (const req of requested) {
+    const packCount = Number(req?.packCount);
+    if (
+      typeof req?.menuItemId !== "string" || !req.menuItemId || req.menuItemId.includes("/") ||
+      !Number.isInteger(packCount) || packCount < 1 || packCount > MAX_PACKS_PER_LINE
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid cart.");
+    }
+
+    const snap = await db.doc(`menuItems/${req.menuItemId}`).get();
+    const item = snap.data();
+    if (!snap.exists || !item || item["available"] === false) {
+      throw new HttpsError(
+        "failed-precondition",
+        "An item in your cart is no longer available. Please refresh and review your cart.",
+      );
+    }
+
+    const pack = ((item["packPricing"] ?? []) as { label: string; quantity: number; priceCents: number }[])
+      .find((p) => p.label === req.packLabel);
+    if (!pack) {
+      throw new HttpsError(
+        "failed-precondition",
+        "An item in your cart has changed. Please refresh and review your cart.",
+      );
+    }
+
+    // Each option group allows one choice; required groups must have one.
+    const groups = (item["optionGroups"] ?? []) as {
+      name: string;
+      required: boolean;
+      options: { label: string; priceCentsDelta: number }[];
+    }[];
+    const chosen = req.selectedOptions ?? [];
+    if (!Array.isArray(chosen)) throw new HttpsError("invalid-argument", "Invalid cart.");
+
+    const selectedOptions: { groupName: string; optionLabel: string; priceCentsDelta: number }[] = [];
+    for (const group of groups) {
+      const picks = chosen.filter((c) => c?.groupName === group.name);
+      if (picks.length > 1 || (group.required && picks.length === 0)) {
+        throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
+      }
+      if (picks.length === 1) {
+        const opt = group.options.find((o) => o.label === picks[0].optionLabel);
+        if (!opt) {
+          throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
+        }
+        selectedOptions.push({
+          groupName: group.name,
+          optionLabel: opt.label,
+          priceCentsDelta: opt.priceCentsDelta ?? 0,
+        });
+      }
+    }
+    // Anything chosen that matched no group means the cart is stale or tampered.
+    if (chosen.length !== selectedOptions.length) {
+      throw new HttpsError("failed-precondition", "Please review the options on your cart items.");
+    }
+
+    const optionDelta = selectedOptions.reduce((s, o) => s + o.priceCentsDelta, 0);
+    lines.push({
+      menuItemId: req.menuItemId,
+      nameSnapshot: String(item["name"]),
+      packLabelSnapshot: pack.label,
+      packQuantity: pack.quantity,
+      packPriceCentsSnapshot: pack.priceCents,
+      packCount,
+      selectedOptions,
+      lineTotalCents: packCount * (pack.priceCents + optionDelta),
+    });
+  }
+
+  return lines;
+}
+
+async function squareRefund(paymentId: string, amountCents: number, idempotencyKey: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${SQUARE_BASE_URL}/v2/refunds`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${squareAccessToken.value()}`,
+        "Square-Version": SQUARE_VERSION,
+      },
+      body: JSON.stringify({
+        idempotency_key: `refund-${idempotencyKey}`,
+        payment_id: paymentId,
+        amount_money: { amount: amountCents, currency: "USD" },
+        reason: "Order could not be saved",
+      }),
+    });
+    if (!res.ok) console.error("Square refund error:", await res.json().catch(() => ({})));
+    return res.ok;
+  } catch (e) {
+    console.error("Square refund threw:", e);
+    return false;
+  }
 }
 
 export const processPayment = onCall(
@@ -324,53 +468,75 @@ export const processPayment = onCall(
   async (request) => {
     const data = request.data as PaymentRequest;
 
+    const name = str(data?.customer?.name, 100);
+    const email = str(data?.customer?.email, 200);
+    const phone = str(data?.customer?.phone, 40);
+    const fulfillmentType = data?.fulfillmentType;
+
     if (
-      !data.sourceId ||
-      !data.customer?.name ||
-      !data.customer?.email ||
-      !data.customer?.phone ||
-      !data.pickupDate ||
+      typeof data?.sourceId !== "string" || !data.sourceId ||
+      typeof data?.idempotencyKey !== "string" || !UUID_RE.test(data.idempotencyKey) ||
+      !name || !phone || !EMAIL_RE.test(email) ||
+      (fulfillmentType !== "pickup" && fulfillmentType !== "delivery") ||
       !Array.isArray(data.cartLines) ||
-      data.cartLines.length === 0
+      data.cartLines.length === 0 ||
+      data.cartLines.length > MAX_CART_LINES
     ) {
-      throw new HttpsError("invalid-argument", "Missing required fields");
+      throw new HttpsError("invalid-argument", "Missing or invalid fields");
     }
 
-    const subtotalCents = data.cartLines.reduce(
-      (sum, line) => sum + line.lineTotalCents,
-      0,
-    );
-    const deliveryFeeCents = data.fulfillmentType === "delivery" ? (data.deliveryFeeCents ?? 500) : 0;
+    const deliveryAddress = str(data.deliveryAddress, 300);
+    const deliveryUnit = str(data.deliveryUnit, 60);
+    const deliveryTime = str(data.deliveryTime, 20);
+    if (fulfillmentType === "delivery" && (!deliveryAddress || !deliveryTime)) {
+      throw new HttpsError("invalid-argument", "Delivery address and time are required.");
+    }
+    const specialRequests = str(data.specialRequests, 1000);
 
     const db = admin.firestore();
+    const orderRef = db.doc(`orders/${data.idempotencyKey.toLowerCase()}`);
 
-    // The tax rate comes from Firestore, never from the client. Tax applies to
-    // the food only: not the delivery fee, and never the tip.
+    // A retry of an attempt we already completed (e.g. the response was lost):
+    // hand back the existing order instead of charging again.
+    const existing = await orderRef.get();
+    if (existing.exists) {
+      return { orderId: orderRef.id, orderNumber: existing.data()?.["orderNumber"] as string };
+    }
+
     const configSnap = await db.doc("config/global").get();
-    const rawRate = Number(configSnap.data()?.["taxRatePercent"] ?? 0);
-    const taxRatePercent = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0;
-    const taxCents = Math.round((subtotalCents * taxRatePercent) / 100);
+    const config = configSnap.data() ?? {};
 
-    // The browser already showed the customer a total. If its tax figure
-    // disagrees with ours, its config is stale (the rate changed mid-session),
-    // so fail loudly rather than charge an amount they never agreed to.
-    const clientTaxCents = Math.round(Number(data.taxCents ?? 0));
-    if (clientTaxCents !== taxCents) {
+    // Pickup/delivery date: must be a real date, past the lead time, not blacked out.
+    const pickupMs = Date.parse(String(data.pickupDate));
+    if (Number.isNaN(pickupMs)) {
+      throw new HttpsError("invalid-argument", "Invalid pickup date.");
+    }
+    const pickupYmd = new Date(pickupMs).toISOString().slice(0, 10);
+    const rawLead = Number(config["defaultLeadTimeDays"] ?? 3);
+    const leadDays = Number.isFinite(rawLead) ? rawLead : 3;
+    const blackouts = ((config["blackoutDates"] ?? []) as admin.firestore.Timestamp[])
+      .map((t) => t.toDate().toISOString().slice(0, 10));
+    if (pickupYmd < addDays(todayInBakeryTz(), leadDays) || blackouts.includes(pickupYmd)) {
       throw new HttpsError(
         "failed-precondition",
-        "Prices have changed. Please refresh the page and try again.",
+        "That date is no longer available. Please choose another date.",
       );
     }
 
+    // Every price comes from Firestore, never from the client.
+    const lines = await priceCart(db, data.cartLines);
+    const subtotalCents = lines.reduce((sum, l) => sum + l.lineTotalCents, 0);
+    const deliveryFeeCents = fulfillmentType === "delivery" ? DELIVERY_FEE_CENTS : 0;
+
+    // Tax applies to the food only: not the delivery fee, and never the tip.
+    const rawRate = Number(config["taxRatePercent"] ?? 0);
+    const taxRatePercent = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 0;
+    const taxCents = Math.round((subtotalCents * taxRatePercent) / 100);
+
     // The tip is the customer's choice so it cannot be recomputed server-side,
-    // but it still has to be sanitised: reject non-numbers and floor at zero so
-    // a negative value can never reduce the charge.
-    //
-    // The ceiling is a flat amount rather than a multiple of the subtotal. A
-    // ratio would clamp a generous tip on a small order, and since the client
-    // shows the total before this runs, clamping would charge an amount the
-    // customer never agreed to. This value must match MAX_TIP_CENTS in checkout.ts.
-    const MAX_TIP_CENTS = 100_000;
+    // but it is sanitised: non-numbers rejected, floored at zero so a negative
+    // value can never reduce the charge. The ceiling is a flat amount so a
+    // generous tip on a small order is never silently clamped.
     const rawTip = Number(data.tipCents ?? 0);
     const tipCents = Number.isFinite(rawTip)
       ? Math.min(Math.max(Math.round(rawTip), 0), MAX_TIP_CENTS)
@@ -378,68 +544,135 @@ export const processPayment = onCall(
 
     const totalCents = subtotalCents + taxCents + deliveryFeeCents + tipCents;
 
+    // The browser already showed the customer a total. If its figure disagrees
+    // with ours (menu price edited, tax rate changed mid-session), fail loudly
+    // rather than charge an amount they never agreed to.
+    const clientExpectedCents = Math.round(Number(data.expectedTotalCents));
+    if (!Number.isFinite(clientExpectedCents) || clientExpectedCents !== totalCents) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Prices have changed. Please refresh the page and try again.",
+      );
+    }
+
     if (totalCents <= 0) {
       throw new HttpsError("invalid-argument", "Order total must be greater than zero");
     }
 
-    // Charge the card via Square REST API (no SDK needed — Node 24 has fetch built in)
+    // Charge the card via Square REST API (no SDK needed — Node 24 has fetch built in).
+    // The idempotency key is the client's per-attempt UUID, so Square itself
+    // refuses to charge the same attempt twice.
     const squareRes = await fetch(`${SQUARE_BASE_URL}/v2/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${squareAccessToken.value()}`,
-        "Square-Version": "2025-07-16",
+        "Square-Version": SQUARE_VERSION,
       },
       body: JSON.stringify({
         source_id: data.sourceId,
-        idempotency_key: randomUUID(),
+        idempotency_key: data.idempotencyKey,
         amount_money: { amount: totalCents, currency: "USD" },
         location_id: LOCATION_ID,
-        buyer_email_address: data.customer.email,
-        note: `Chloe G's Treats, ${data.customer.name}`,
+        buyer_email_address: email,
+        note: `Chloe G's Treats, ${name}`,
       }),
     });
 
     if (!squareRes.ok) {
-      const err = await squareRes.json().catch(() => ({}));
+      const err = await squareRes.json().catch(() => ({})) as { errors?: { category?: string; code?: string }[] };
       console.error("Square payment error:", err);
+      // Card problems are the customer's to fix; anything else is ours.
+      if (err.errors?.[0]?.category === "PAYMENT_METHOD_ERROR") {
+        throw new HttpsError("failed-precondition", "Your card was declined. Please check your details or try a different card.");
+      }
       throw new HttpsError("internal", "Payment failed. Please try again.");
     }
 
     const squareData = await squareRes.json() as { payment?: { id?: string } };
     const squarePaymentId = squareData.payment?.id ?? "";
 
-    // Create the Firestore order now that payment succeeded
-    const orderNumber = `CG-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Create the Firestore order now that payment succeeded. If this fails the
+    // customer has been charged for an order we cannot see, so refund them.
+    const orderNumber = `CG-${Math.floor(100000 + Math.random() * 900000)}`;
+    try {
+      await orderRef.create({
+        orderNumber,
+        customer: { name, email, phone },
+        isGuest: true,
+        items: lines,
+        subtotalCents,
+        taxCents,
+        taxRatePercent,
+        totalCents,
+        pickupDate: admin.firestore.Timestamp.fromMillis(pickupMs),
+        fulfillmentType,
+        deliveryAddress: fulfillmentType === "delivery" ? deliveryAddress : null,
+        deliveryUnit: fulfillmentType === "delivery" ? deliveryUnit || null : null,
+        deliveryTime: fulfillmentType === "delivery" ? deliveryTime : null,
+        deliveryFeeCents,
+        tipCents,
+        specialRequests: specialRequests || null,
+        status: "confirmed",
+        paymentMethod: "square",
+        paymentStatus: "paid",
+        squarePaymentId,
+        wantsEmailConfirmation: !!data.wantsEmailConfirmation,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Order write failed after successful charge:", e, { squarePaymentId, totalCents });
+      const refunded = await squareRefund(squarePaymentId, totalCents, data.idempotencyKey);
+      throw new HttpsError(
+        "internal",
+        refunded
+          ? "We couldn't save your order, and your card has been refunded. Please try again."
+          : "We couldn't save your order. Please contact us before trying again; you may have been charged.",
+      );
+    }
 
-    await db.collection("orders").add({
-      orderNumber,
-      customer: data.customer,
-      isGuest: true,
-      items: data.cartLines,
-      subtotalCents,
-      taxCents,
-      taxRatePercent,
-      totalCents,
-      pickupDate: admin.firestore.Timestamp.fromDate(new Date(data.pickupDate)),
-      fulfillmentType: data.fulfillmentType ?? "pickup",
-      deliveryAddress: data.deliveryAddress ?? null,
-      deliveryUnit: data.deliveryUnit ?? null,
-      deliveryTime: data.deliveryTime ?? null,
-      deliveryFeeCents,
-      tipCents,
-      specialRequests: data.specialRequests ?? null,
-      status: "confirmed",
-      paymentMethod: "square",
-      paymentStatus: "paid",
-      squarePaymentId,
-      wantsEmailConfirmation: !!data.wantsEmailConfirmation,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return { orderNumber };
+    return { orderId: orderRef.id, orderNumber };
   },
 );
+
+/**
+ * Confirmation-page lookup. Orders are not readable from the browser (they hold
+ * customer PII); the unguessable order ID returned by processPayment is the
+ * capability that grants access to exactly that one order.
+ */
+export const getOrderConfirmation = onCall({ maxInstances: 10 }, async (request) => {
+  const orderId = request.data?.orderId;
+  if (typeof orderId !== "string" || !UUID_RE.test(orderId)) {
+    throw new HttpsError("invalid-argument", "Invalid order.");
+  }
+  const snap = await admin.firestore().doc(`orders/${orderId.toLowerCase()}`).get();
+  const d = snap.data();
+  if (!snap.exists || !d) throw new HttpsError("not-found", "Order not found.");
+
+  const toIso = (t: unknown) => (t as admin.firestore.Timestamp | undefined)?.toDate().toISOString() ?? null;
+  return {
+    orderNumber: d["orderNumber"],
+    customer: d["customer"],
+    items: d["items"] ?? [],
+    subtotalCents: d["subtotalCents"],
+    totalCents: d["totalCents"],
+    pickupDate: toIso(d["pickupDate"]),
+    fulfillmentType: d["fulfillmentType"] ?? "pickup",
+    deliveryAddress: d["deliveryAddress"] ?? null,
+    deliveryUnit: d["deliveryUnit"] ?? null,
+    deliveryTime: d["deliveryTime"] ?? null,
+    deliveryFeeCents: d["deliveryFeeCents"] ?? 0,
+    taxCents: d["taxCents"] ?? 0,
+    taxRatePercent: d["taxRatePercent"] ?? 0,
+    tipCents: d["tipCents"] ?? 0,
+    specialRequests: d["specialRequests"] ?? null,
+    status: d["status"],
+    paymentMethod: d["paymentMethod"],
+    paymentStatus: d["paymentStatus"],
+    wantsEmailConfirmation: d["wantsEmailConfirmation"] ?? false,
+    createdAt: toIso(d["createdAt"]),
+  };
+});
 
 export const onOrderCreated = onDocumentCreated(
   { document: "orders/{orderId}", secrets: [resendApiKey] },

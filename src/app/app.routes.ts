@@ -42,7 +42,7 @@ export const routes: Routes = [
     title: 'Checkout · Chloe G\'s',
   },
   {
-    path: 'order/:orderNumber',
+    path: 'order/:orderId',
     loadComponent: () =>
       import('./pages/confirmation/confirmation').then((m) => m.Confirmation),
     title: 'Order Confirmed · Chloe G\'s',

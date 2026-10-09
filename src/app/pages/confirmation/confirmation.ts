@@ -21,7 +21,7 @@ export class Confirmation {
   readonly order = signal<Order | undefined>(undefined);
 
   constructor() {
-    const orderNumber = this.route.snapshot.paramMap.get('orderNumber') ?? '';
-    this.orders.getByNumber(orderNumber).then(o => this.order.set(o));
+    const orderId = this.route.snapshot.paramMap.get('orderId') ?? '';
+    this.orders.getConfirmation(orderId).then(o => this.order.set(o));
   }
 }

@@ -19,7 +19,6 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { CartService } from '../../services/cart.service';
 import { ConfigService } from '../../services/config.service';
-import { OrderService } from '../../services/order.service';
 import { CentsPipe } from '../../shared/cents.pipe';
 import { environment } from '../../../environments/environment';
 
@@ -110,7 +109,6 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly cart = inject(CartService);
   private readonly config = inject(ConfigService);
-  private readonly orderService = inject(OrderService);
   private readonly router = inject(Router);
 
   readonly DELIVERY_FEE_CENTS = DELIVERY_FEE_CENTS;
@@ -168,6 +166,14 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private squareCard: any;
+
+  /**
+   * One UUID per checkout attempt. The server uses it as Square's idempotency
+   * key and as the order ID, so a retry after a lost response cannot charge twice.
+   * Regenerated after any definite failure; kept only when the outcome is unknown
+   * (network drop / timeout), where the server can recognise the repeat.
+   */
+  private attemptKey = crypto.randomUUID();
   private placesLib?: Promise<PlacesLib>;
   private addressSessionToken?: object;
   private addressDebounceId?: ReturnType<typeof setTimeout>;
@@ -417,40 +423,45 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      const processPayment = httpsCallable<unknown, { orderNumber: string }>(
+      const processPayment = httpsCallable<unknown, { orderId: string; orderNumber: string }>(
         getFunctions(),
         'processPayment',
       );
       const { data } = await processPayment({
         sourceId: tokenResult.token,
+        idempotencyKey: this.attemptKey,
         customer: { name: v.name, email: v.email, phone: v.phone },
         pickupDate: new Date(v.pickupDate! + 'T00:00:00').toISOString(),
         fulfillmentType: this.fulfillmentType(),
         deliveryAddress: isDelivery ? v.deliveryAddress : undefined,
         deliveryUnit: isDelivery ? v.deliveryUnit?.trim() || undefined : undefined,
         deliveryTime: isDelivery ? v.deliveryTime : undefined,
-        deliveryFeeCents: isDelivery ? DELIVERY_FEE_CENTS : 0,
-        taxCents: this.taxCents(),
+        expectedTotalCents: this.totalCents(),
         tipCents: this.tipCents(),
         specialRequests: v.specialRequests || undefined,
         wantsEmailConfirmation: !!v.wantsEmailConfirmation,
+        // Only identifiers go to the server; it looks up every price itself.
         cartLines: this.cart.lines().map(l => ({
           menuItemId: l.item.id,
-          nameSnapshot: l.item.name,
-          packLabelSnapshot: l.pack.label,
-          packQuantity: l.pack.quantity,
-          packPriceCentsSnapshot: l.pack.priceCents,
+          packLabel: l.pack.label,
           packCount: l.packCount,
-          selectedOptions: l.selectedOptions,
-          lineTotalCents: this.cart.lineTotalCents(l),
+          selectedOptions: l.selectedOptions.map(o => ({
+            groupName: o.groupName,
+            optionLabel: o.optionLabel,
+          })),
         })),
       });
 
       this.cart.clear();
-      await this.router.navigate(['/order', data.orderNumber]);
+      this.attemptKey = crypto.randomUUID();
+      await this.router.navigate(['/order', data.orderId]);
     } catch (err) {
       console.error('[checkout] Payment failed:', err);
       const e = err as { code?: string; message?: string };
+      // Unknown outcome: keep the key so the server can spot a repeat of the same attempt.
+      if (e?.code !== 'functions/unavailable' && e?.code !== 'functions/deadline-exceeded') {
+        this.attemptKey = crypto.randomUUID();
+      }
       this.cardError.set(
         e?.message
           ? `Payment failed: ${e.message}`

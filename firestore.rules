@@ -16,12 +16,14 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.token.admin == true;
     }
 
-    // Orders: anyone can create (checkout flow); reads are open so the
-    // confirmation page can fetch by orderNumber. Admin can update status.
+    // Orders hold customer PII (name, email, phone, address) and a payment
+    // record, so the browser never creates or reads them directly. They are
+    // created by the processPayment Cloud Function (the Admin SDK bypasses
+    // these rules) and shown to customers via the getOrderConfirmation
+    // function. Only the admin can read the list and update status.
     match /orders/{id} {
-      allow create: if true;
-      allow read:   if true;
-      allow update: if request.auth != null && request.auth.token.admin == true;
+      allow read, update: if request.auth != null && request.auth.token.admin == true;
+      allow create, delete: if false;
     }
 
     // Everything else: deny by default
