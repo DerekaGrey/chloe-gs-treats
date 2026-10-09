@@ -5,9 +5,12 @@
  */
 export const environment = {
   production: false,
+  /** Sandbox build: talk ONLY to the local Firebase emulators, never the live project. */
+  useEmulators: true,
   googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
-    // Sandbox credentials — swap for production values when going live
+    // SANDBOX credentials. Live values live in environment.production.ts.
+    mode: 'sandbox' as 'sandbox' | 'production',
     applicationId: 'sandbox-sq0idb-nMpdYXWOtm64yd6SMV0fVg',
     locationId: 'LZDNJQW0XEQV1',
     scriptUrl: 'https://sandbox.web.squarecdn.com/v1/square.js',

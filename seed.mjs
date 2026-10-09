@@ -16,7 +16,8 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc as clientDoc, setDoc as clientSetDoc, Timestamp as ClientTimestamp } from 'firebase/firestore';
+import { createRequire } from 'module';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyD7n3Kb_KnWcPSder7lByLsf0ge9qHvaP0',
@@ -27,8 +28,28 @@ const firebaseConfig = {
   appId: '1:370983422776:web:56fdc852a1459dcc614fcd',
 };
 
-initializeApp(firebaseConfig);
-const db = getFirestore();
+// LOCAL mode (npm run seed:local): write to the Firestore EMULATOR using the Admin SDK
+// (which bypasses security rules) and create a local admin login. Otherwise write to
+// the real project via the client SDK as before (needs temporarily-open rules).
+const LOCAL = !!process.env.FIRESTORE_EMULATOR_HOST;
+let db, doc, setDoc, Timestamp;
+if (LOCAL) {
+  const require = createRequire(new URL('./functions/package.json', import.meta.url));
+  const { initializeApp: adminInit } = require('firebase-admin/app');
+  const { getFirestore: adminFirestore, Timestamp: AdminTimestamp } = require('firebase-admin/firestore');
+  adminInit({ projectId: firebaseConfig.projectId });
+  db = adminFirestore();
+  doc = (database, ...path) => database.doc(path.join('/'));
+  setDoc = (ref, data) => ref.set(data);
+  Timestamp = AdminTimestamp;
+  console.log('Seeding the local EMULATOR (not the live project)');
+} else {
+  initializeApp(firebaseConfig);
+  db = getFirestore();
+  doc = clientDoc;
+  setDoc = clientSetDoc;
+  Timestamp = ClientTimestamp;
+}
 
 // ---------------------------------------------------------------------------
 // config/global
@@ -358,3 +379,16 @@ for (const event of popupEvents) {
 
 console.log('\nSeed complete!');
 process.exit(0);
+if (LOCAL) {
+  // Local admin login for the emulator: admin@local.test / localadmin123
+  const require = createRequire(new URL('./functions/package.json', import.meta.url));
+  const { getAuth: adminAuth } = require('firebase-admin/auth');
+  const auth = adminAuth();
+  const email = 'admin@local.test';
+  const user = await auth.getUserByEmail(email).catch(() =>
+    auth.createUser({ email, password: 'localadmin123', emailVerified: true }),
+  );
+  await auth.setCustomUserClaims(user.uid, { admin: true });
+  console.log(`Local admin ready: ${email} / localadmin123`);
+}
+

@@ -4,10 +4,13 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "node scripts/build.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "deploy": "cross-env FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy"
+    "deploy": "cross-env FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy",
+    "build:live": "cross-env APP_ENV=live node scripts/build.mjs",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --import=.emulator-data --export-on-exit",
+    "seed:local": "cross-env FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node seed.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

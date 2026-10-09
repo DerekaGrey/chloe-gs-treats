@@ -9,7 +9,7 @@
 // also pins @firebase/app as a belt-and-braces safeguard — leave both in place.
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { defineSecret } from "firebase-functions/params";
+import { defineSecret, defineString } from "firebase-functions/params";
 import * as nodemailer from "nodemailer";
 import * as admin from "firebase-admin";
 
@@ -25,9 +25,15 @@ const gmailAppPassword = defineSecret("GMAIL_APP_PASSWORD");
 const GMAIL_USER = "chloegshomemadetreats@gmail.com";
 const FROM_EMAIL = `Chloe G's Homemade Treats <${GMAIL_USER}>`;
 
-// Sandbox base URL — change to https://connect.squareup.com when going live
-const SQUARE_BASE_URL = "https://connect.squareupsandbox.com";
-const LOCATION_ID = "LZDNJQW0XEQV1";
+// Square mode and location come from functions/.env (see the cutover notes there).
+// Defaults to sandbox so a missing value can never silently charge real cards.
+const squareEnv = defineString("SQUARE_ENV", { default: "sandbox" });
+const squareLocationId = defineString("SQUARE_LOCATION_ID");
+
+const squareBaseUrl = () =>
+  squareEnv.value() === "production"
+    ? "https://connect.squareup.com"
+    : "https://connect.squareupsandbox.com";
 const SQUARE_VERSION = "2025-07-16";
 
 interface CartLine {
@@ -324,6 +330,8 @@ interface PaymentRequest {
   sourceId: string;
   /** Client-generated UUID, one per checkout attempt. Doubles as the order doc ID. */
   idempotencyKey: string;
+  /** Which Square environment the browser was built for; must match this server. */
+  squareMode: 'sandbox' | 'production';
   customer: { name: string; email: string; phone: string };
   pickupDate: string;
   fulfillmentType: 'pickup' | 'delivery';
@@ -451,7 +459,7 @@ async function priceCart(
 
 async function squareRefund(paymentId: string, amountCents: number, idempotencyKey: string): Promise<boolean> {
   try {
-    const res = await fetch(`${SQUARE_BASE_URL}/v2/refunds`, {
+    const res = await fetch(`${squareBaseUrl()}/v2/refunds`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -493,6 +501,17 @@ export const processPayment = onCall(
       data.cartLines.length > MAX_CART_LINES
     ) {
       throw new HttpsError("invalid-argument", "Missing or invalid fields");
+    }
+
+    // A half-finished go-live (site flipped but functions not, or the reverse)
+    // would otherwise fail with confusing Square auth errors. Fail clearly instead.
+    const serverMode = squareEnv.value() === "production" ? "production" : "sandbox";
+    if (data.squareMode !== serverMode) {
+      console.error(`Square mode mismatch: browser=${data.squareMode} server=${serverMode}`);
+      throw new HttpsError(
+        "failed-precondition",
+        "Payments are being updated. Please refresh the page and try again.",
+      );
     }
 
     const deliveryAddress = str(data.deliveryAddress, 300);
@@ -572,7 +591,7 @@ export const processPayment = onCall(
     // Charge the card via Square REST API (no SDK needed — Node 24 has fetch built in).
     // The idempotency key is the client's per-attempt UUID, so Square itself
     // refuses to charge the same attempt twice.
-    const squareRes = await fetch(`${SQUARE_BASE_URL}/v2/payments`, {
+    const squareRes = await fetch(`${squareBaseUrl()}/v2/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -583,7 +602,7 @@ export const processPayment = onCall(
         source_id: data.sourceId,
         idempotency_key: data.idempotencyKey,
         amount_money: { amount: totalCents, currency: "USD" },
-        location_id: LOCATION_ID,
+        location_id: squareLocationId.value(),
         buyer_email_address: email,
         note: `Chloe G's Treats, ${name}`,
       }),

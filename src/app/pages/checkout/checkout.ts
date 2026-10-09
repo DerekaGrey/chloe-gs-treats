@@ -317,8 +317,10 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     if (this.lines().length === 0) return;
 
-    if (typeof Square === 'undefined') {
-      console.error('[checkout] Square SDK script did not load — check the tag in index.html.');
+    try {
+      await this.loadSquareSdk();
+    } catch (err) {
+      console.error('[checkout] Square SDK script did not load:', err);
       this.cardError.set('Could not load the payment form. Please refresh and try again.');
       return;
     }
@@ -334,6 +336,21 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
       console.error('[checkout] Square card init failed:', err);
       this.cardError.set('Could not load the payment form. Please refresh and try again.');
     }
+  }
+
+  /**
+   * Loads the Square Web Payments SDK from environment.square.scriptUrl, so the
+   * sandbox/live choice comes from the build configuration, not index.html.
+   */
+  private loadSquareSdk(): Promise<void> {
+    if (typeof Square !== 'undefined') return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = environment.square.scriptUrl;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load ' + script.src));
+      document.head.appendChild(script);
+    });
   }
 
   ngOnDestroy(): void {
@@ -430,6 +447,7 @@ export class Checkout implements OnInit, AfterViewInit, OnDestroy {
       const { data } = await processPayment({
         sourceId: tokenResult.token,
         idempotencyKey: this.attemptKey,
+        squareMode: environment.square.mode,
         customer: { name: v.name, email: v.email, phone: v.phone },
         pickupDate: new Date(v.pickupDate! + 'T00:00:00').toISOString(),
         fulfillmentType: this.fulfillmentType(),
