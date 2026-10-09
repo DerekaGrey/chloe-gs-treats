@@ -12,7 +12,7 @@ export const environment = {
   production: true,
   useEmulators: false,
   /** reCAPTCHA Enterprise ("Fraud Defense") SITE key, created in Google Cloud for this project and registered under Firebase console > App Check. Public. */
-  appCheckSiteKey: 'REPLACE_ME',
+  appCheckSiteKey: '6Le1E-ctAAAAACadYJ_GfpIpzYUs55CX8pa5qQ1F',
   googlePlacesApiKey: 'AIzaSyBxAlOj7dCrv7xcShPYt0yBgyB3SBY_CJY',
   square: {
     mode: 'production' as 'sandbox' | 'production',
