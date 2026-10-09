@@ -65,6 +65,8 @@ From the project root, on `main`:
 npm run deploy
 ```
 
+In Claude Code you can type `/deploy` instead: it checks you are on a clean, pushed `main`, runs the tests and the live-config guard, shows what is about to go live, asks for your explicit yes, deploys, and lists the post-deploy checks.
+
 This builds the **live** site, builds the functions, and deploys hosting, functions and Firestore/Storage rules together (they must go out together). It is refused while the live Square configuration is unfinished (`scripts/check-live.mjs`). Always run it from the project root: `functions/package.json` has its own, different `deploy` script.
 
 ## Going live with real payments (one-time checklist)
