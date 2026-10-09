@@ -30,6 +30,27 @@ Things we want to do but have not started. Newest first within each section. Mov
 
 **Testing notes:** the Functions emulator does not fire schedules on its own, so keep the logic in a pure, unit-tested function and trigger the handler manually in the emulator.
 
+### Popup-day sign-up list, with an email whenever a popup is scheduled
+
+**Idea (2026-10-09):** an option on the site to sign up for news about popup days. Whenever Chloe schedules a popup in the admin screen, everyone on the list gets an email about it.
+
+**How it would work**
+- **Sign-up form** somewhere visible (footer, home page, the Schedule page, and possibly a separate "also tell me about popups" box at checkout; never add buyers to the list without that explicit tick). It saves just an email address (and optionally a name) plus when and where they signed up.
+- **Sending:** a trigger on new popup events (`onDocumentCreated` on `popupEvents`) emails the list with the date, time, location and what is on the stand. Alternatively a "Send announcement" button on the event in the admin screen, so editing or drafting an event never emails anyone by accident.
+- **Unsubscribe:** every email carries a one-click unsubscribe link (a signed token, handled by a Cloud Function) that removes the address.
+
+**Rules and risks to plan for (this is marketing email, not an order receipt)**
+- **Consent and unsubscribe:** only people who sign up. Every email needs a working unsubscribe, honored promptly. Double opt-in (confirm by clicking a link in a first email) keeps typos and other people's addresses off the list.
+- **Postal address:** US anti-spam law (CAN-SPAM) requires a valid physical postal address in commercial emails. This overlaps with the home-address question: a PO box or a business address would avoid putting the house in every announcement. Check the exact requirement before launching.
+- **Sender limits:** announcements currently could only go through the bakery Gmail account (about 500 recipients a day, and bulk sending from a personal Gmail can get the account flagged). Fine for a small list, but a larger one needs a real email provider (which needs a verified domain), or a service that manages lists and unsubscribes itself.
+- **Privacy of the list:** the email addresses must not be readable from the browser. Sign-ups should go through a Cloud Function, not directly into Firestore, so the list is private and can be protected with App Check and rate limiting.
+- **Abuse:** a public form can be spammed with fake or other people's emails; double opt-in and rate limits handle most of that.
+- **Privacy notice:** a short line near the form saying what the emails are for and how to unsubscribe.
+
+**Open questions (not decided yet):** send automatically on creation or via an admin button; double opt-in or not; where the form lives; whether to also announce changes or cancellations to an event; Gmail vs a proper email service; what postal address goes in the footer; whether to add a reminder shortly before the event.
+
+**Related:** reuses `sendEmail`, and shares the "update email opt-in wording" question with the reminders and thank-you items below.
+
 ### Thank-you email after an order is picked up
 
 **Idea (2026-10-09):** when Chloe marks an order **Picked Up** in the admin screen, email the customer a short thank-you from Chloe G's.
