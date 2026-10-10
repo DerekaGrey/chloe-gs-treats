@@ -7,6 +7,7 @@ import { SEED_CONFIG } from './data/seed-config';
 import { CartService } from './services/cart.service';
 import { ConfigService } from './services/config.service';
 import { IdleTimeoutService } from './services/idle-timeout.service';
+import { NavigationHistoryService } from './services/navigation-history.service';
 
 // The real services talk to Firebase (getAuth(), a live Firestore listener),
 // which does not exist in a unit test. Replace them with fakes so this spec
@@ -14,10 +15,12 @@ import { IdleTimeoutService } from './services/idle-timeout.service';
 describe('App', () => {
   const showWarning = signal(false);
   const staySignedIn = vi.fn();
+  let historyCreated = 0;
 
   beforeEach(async () => {
     showWarning.set(false);
     staySignedIn.mockClear();
+    historyCreated = 0;
 
     await TestBed.configureTestingModule({
       imports: [App],
@@ -26,6 +29,13 @@ describe('App', () => {
         { provide: IdleTimeoutService, useValue: { showWarning, staySignedIn } },
         { provide: ConfigService, useValue: { config: SEED_CONFIG } },
         { provide: CartService, useValue: { itemCount: signal(0) } },
+        {
+          provide: NavigationHistoryService,
+          useFactory: () => {
+            historyCreated++;
+            return { backTo: vi.fn() };
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -63,5 +73,12 @@ describe('App', () => {
 
     (el.querySelector('.idle-stay-btn') as HTMLButtonElement).click();
     expect(staySignedIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates the navigation history service at startup, so it sees every page the visitor opens', () => {
+    // If only the first page using it created it, it would miss the menu visit that
+    // "Back to Menu" has to return to.
+    TestBed.createComponent(App);
+    expect(historyCreated).toBe(1);
   });
 });
